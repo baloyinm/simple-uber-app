@@ -61,21 +61,21 @@ const PIE_COLORS = ["#D4A017", "#1A6FA8", "#22C55E", "#EF4444"];
 
 // ─── STYLE CONSTANTS ──────────────────────────────────────────────────────────
 const S = {
-    // Colors
-    bg: "#0D1117",
-    surface: "#161B27",
-    surfaceAlt: "#1C2337",
-    border: "#252D45",
-    gold: "#D4A017",
-    goldLight: "#F0C040",
-    blue: "#1A6FA8",
-    blueLight: "#2A8FD8",
-    text: "#E8EBF0",
-    textMuted: "#7A849A",
-    textDim: "#4A5268",
-    success: "#22C55E",
-    warning: "#F59E0B",
-    danger: "#EF4444",
+    // Colors mapped to CSS variables
+    bg: "var(--bg-color)",
+    surface: "var(--surface)",
+    surfaceAlt: "var(--surface-alt)",
+    border: "var(--border)",
+    gold: "var(--gold)",
+    goldLight: "var(--gold-light)",
+    blue: "var(--blue)",
+    blueLight: "var(--blue-light)",
+    text: "var(--text-main)",
+    textMuted: "var(--text-muted)",
+    textDim: "var(--text-dim)",
+    success: "var(--success)",
+    warning: "var(--warning)",
+    danger: "var(--danger)",
     pending: "#A78BFA",
 };
 
@@ -107,39 +107,39 @@ const Avatar = ({ initials, size = 36, color = S.gold }) => (
     </div>
 );
 
-const Card = ({ children, style }) => (
-    <div style={{ background: S.surface, border: `1px solid ${S.border}`, borderRadius: 16, padding: 20, ...style }}>
+const Card = ({ children, style, className = "" }) => (
+    <div className={`glass-card ${className}`} style={{ padding: 24, ...style }}>
         {children}
     </div>
 );
 
 const Btn = ({ children, onClick, variant = "gold", size = "md", style, disabled }) => {
     const variants = {
-        gold: { background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, color: "#0D1117", border: "none" },
-        outline: { background: "transparent", color: S.gold, border: `1px solid ${S.gold}44` },
+        gold: { background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, color: "#06090e", border: "none", boxShadow: "0 4px 14px rgba(212, 160, 23, 0.3)" },
+        outline: { background: "var(--surface)", color: S.gold, border: `1px solid ${S.gold}` },
         ghost: { background: "transparent", color: S.textMuted, border: "none" },
-        danger: { background: "#EF444422", color: "#EF4444", border: "1px solid #EF444444" },
-        success: { background: "#22C55E22", color: "#22C55E", border: "1px solid #22C55E44" },
-        blue: { background: `linear-gradient(135deg, ${S.blue}, ${S.blueLight})`, color: "#fff", border: "none" },
+        danger: { background: "var(--danger-bg)", color: "var(--danger)", border: "1px solid rgba(239, 68, 68, 0.3)" },
+        success: { background: "var(--success-bg)", color: "var(--success)", border: "1px solid rgba(34, 197, 94, 0.3)" },
+        blue: { background: `linear-gradient(135deg, ${S.blue}, ${S.blueLight})`, color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(42, 143, 216, 0.3)" },
     };
-    const sizes = { sm: { padding: "6px 14px", fontSize: 13 }, md: { padding: "10px 20px", fontSize: 14 }, lg: { padding: "14px 28px", fontSize: 16 } };
+    const sizes = { sm: { padding: "8px 16px", fontSize: 13 }, md: { padding: "12px 24px", fontSize: 15 }, lg: { padding: "16px 32px", fontSize: 16 } };
     return (
-        <button onClick={onClick} disabled={disabled} style={{ ...variants[variant], ...sizes[size], borderRadius: 10, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, fontFamily: "inherit", transition: "all 0.2s", letterSpacing: "0.02em", display: "inline-flex", alignItems: "center", gap: 8, ...style }}>
+        <button onClick={onClick} disabled={disabled} style={{ ...variants[variant], ...sizes[size], borderRadius: "var(--radius-md)", fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1, transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)", letterSpacing: "0.02em", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, ...style }} onMouseEnter={(e) => !disabled && (e.currentTarget.style.transform = "translateY(-1px)")} onMouseLeave={(e) => !disabled && (e.currentTarget.style.transform = "translateY(0)")}>
             {children}
         </button>
     );
 };
 
 const Input = ({ label, value, onChange, type = "text", placeholder, required, options, min }) => (
-    <div style={{ marginBottom: 16 }}>
-        {label && <label style={{ display: "block", color: S.textMuted, fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>{label}{required && <span style={{ color: S.gold }}> *</span>}</label>}
+    <div style={{ marginBottom: 20 }}>
+        {label && <label style={{ display: "block", color: S.textMuted, fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>{label}{required && <span style={{ color: S.gold }}> *</span>}</label>}
         {options ? (
-            <select value={value} onChange={e => onChange(e.target.value)} style={{ width: "100%", background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, padding: "11px 14px", color: S.text, fontSize: 14, fontFamily: "inherit", outline: "none", appearance: "none" }}>
+            <select value={value} onChange={e => onChange(e.target.value)} style={{ width: "100%", background: "var(--surface-alt)", border: `1px solid var(--border)`, borderRadius: "var(--radius-md)", padding: "14px 16px", color: S.text, fontSize: 15, transition: "border-color 0.2s, box-shadow 0.2s", outline: "none", appearance: "none", cursor: "pointer" }} onFocus={(e) => { e.target.style.borderColor = "var(--gold)"; e.target.style.boxShadow = "0 0 0 3px rgba(212, 160, 23, 0.15)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }}>
                 <option value="">Select...</option>
                 {options.map(o => <option key={o.value || o} value={o.value || o}>{o.label || o}</option>)}
             </select>
         ) : (
-            <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} min={min} style={{ width: "100%", background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, padding: "11px 14px", color: S.text, fontSize: 14, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }} />
+            <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} min={min} style={{ width: "100%", background: "var(--surface-alt)", border: `1px solid var(--border)`, borderRadius: "var(--radius-md)", padding: "14px 16px", color: S.text, fontSize: 15, transition: "border-color 0.2s, box-shadow 0.2s", outline: "none", boxSizing: "border-box" }} onFocus={(e) => { e.target.style.borderColor = "var(--gold)"; e.target.style.boxShadow = "0 0 0 3px rgba(212, 160, 23, 0.15)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
         )}
     </div>
 );
@@ -147,13 +147,14 @@ const Input = ({ label, value, onChange, type = "text", placeholder, required, o
 const Modal = ({ open, onClose, title, children }) => {
     if (!open) return null;
     return (
-        <div style={{ position: "fixed", inset: 0, background: "#000C", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
-            <div style={{ background: S.surface, border: `1px solid ${S.border}`, borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto", padding: 24 }} onClick={e => e.stopPropagation()}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                    <h3 style={{ margin: 0, color: S.text, fontSize: 18, fontWeight: 800 }}>{title}</h3>
-                    <button onClick={onClose} style={{ background: S.surfaceAlt, border: "none", color: S.textMuted, borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(6, 9, 14, 0.8)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+            <div className="glass-panel" style={{ borderRadius: "var(--radius-xl)", width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto", padding: 32, boxSizing: "border-box", animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                    <h3 style={{ margin: 0, color: S.text, fontSize: 20, fontWeight: 700, fontFamily: "var(--font-sans)" }}>{title}</h3>
+                    <button onClick={onClose} style={{ background: "var(--surface-alt)", border: "none", color: S.textMuted, borderRadius: "var(--radius-sm)", width: 36, height: 36, cursor: "pointer", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }} onMouseEnter={e => { e.target.style.background = "var(--border)"; e.target.style.color = S.text; }} onMouseLeave={e => { e.target.style.background = "var(--surface-alt)"; e.target.style.color = S.textMuted; }}>×</button>
                 </div>
                 {children}
+                <style>{`@keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }`}</style>
             </div>
         </div>
     );
@@ -170,14 +171,14 @@ const Toast = ({ msg, type }) => {
 };
 
 const StatCard = ({ label, value, sub, color = S.gold, icon }) => (
-    <div style={{ background: S.surface, border: `1px solid ${S.border}`, borderRadius: 16, padding: 18, flex: 1 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-                <p style={{ margin: "0 0 6px", color: S.textMuted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</p>
-                <p style={{ margin: 0, color, fontSize: 28, fontWeight: 900, fontFamily: "Georgia, serif" }}>{value}</p>
-                {sub && <p style={{ margin: "4px 0 0", color: S.textMuted, fontSize: 11 }}>{sub}</p>}
-            </div>
-            <div style={{ fontSize: 22, opacity: 0.7 }}>{icon}</div>
+    <div className="glass-card" style={{ padding: 24, flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+            <p style={{ margin: "0", color: S.textMuted, fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</p>
+            <div style={{ fontSize: 24, opacity: 0.8, filter: `drop-shadow(0 0 8px ${color}40)` }}>{icon}</div>
+        </div>
+        <div>
+            <p style={{ margin: 0, color: color, fontSize: 36, fontWeight: 700, fontFamily: "var(--font-sans)", lineHeight: 1 }}>{value}</p>
+            {sub && <p style={{ margin: "8px 0 0", color: S.textMuted, fontSize: 13, fontWeight: 400 }}>{sub}</p>}
         </div>
     </div>
 );
@@ -346,9 +347,9 @@ export default function App() {
 
     // ─── RENDER: LOGIN ────────────────────────────────────────────────────────────
     if (view === "login") return (
-        <div style={{ minHeight: "100vh", background: S.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px", fontFamily: "'Trebuchet MS', Georgia, sans-serif" }}>
+        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
             <Toast {...toast} />
-            <div style={{ width: "100%", maxWidth: 420 }}>
+            <div style={{ width: "100%", maxWidth: 460, animation: "slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
                 {/* Logo */}
                 <div style={{ textAlign: "center", marginBottom: 36 }}>
                     <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 72, height: 72, borderRadius: 20, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, marginBottom: 16, boxShadow: `0 8px 32px ${S.gold}44` }}>
@@ -359,8 +360,8 @@ export default function App() {
                     <div style={{ color: S.textDim, fontSize: 11, marginTop: 4 }}>Sibanye Stillwater Division</div>
                 </div>
 
-                <Card>
-                    <h2 style={{ margin: "0 0 20px", color: S.text, fontSize: 20, fontWeight: 800 }}>Sign In</h2>
+                <Card className="glass-panel" style={{ padding: 32 }}>
+                    <h2 style={{ margin: "0 0 24px", color: S.text, fontSize: 24, fontWeight: 700, fontFamily: "var(--font-sans)" }}>Sign In</h2>
                     <Input label="Email Address" value={loginForm.email} onChange={v => setLoginForm(p => ({ ...p, email: v }))} type="email" placeholder="your@email.com" required />
                     <Input label="Password" value={loginForm.password} onChange={v => setLoginForm(p => ({ ...p, password: v }))} type="password" placeholder="••••••••" required />
                     <Btn onClick={handleLogin} style={{ width: "100%", justifyContent: "center", marginTop: 4 }} size="lg">Sign In</Btn>
@@ -368,8 +369,8 @@ export default function App() {
                     <div style={{ marginTop: 16, padding: 14, background: S.surfaceAlt, borderRadius: 10, border: `1px solid ${S.border}` }}>
                         <p style={{ margin: "0 0 8px", color: S.textMuted, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Quick Demo Logins</p>
                         {[["admin@demo", "Admin (Transport Admin)", "admin"], ["mgmt@demo", "Enock Sithole (Manager)", "management"], ["user@demo", "Sarah Dlamini (User)", "user"]].map(([hint, name, role]) => (
-                            <div key={role} onClick={() => { setLoginForm({ email: users.find(u => u.role === role)?.email || "", password: "demo" }); }} style={{ cursor: "pointer", padding: "6px 0", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between" }}>
-                                <span style={{ color: S.text, fontSize: 12, fontWeight: 600 }}>{name}</span>
+                            <div key={role} onClick={() => { setLoginForm({ email: users.find(u => u.role === role)?.email || "", password: "demo" }); }} style={{ cursor: "pointer", padding: "10px 8px", borderBottom: `1px solid var(--border-light)`, display: "flex", justifyContent: "space-between", alignItems: "center", transition: "background 0.2s", borderRadius: 6 }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.02)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                                <span style={{ color: S.text, fontSize: 13, fontWeight: 500 }}>{name}</span>
                                 <Badge status={role === "admin" ? "active" : role === "management" ? "in-review" : "approved"} />
                             </div>
                         ))}
@@ -390,16 +391,16 @@ export default function App() {
 
     // ─── RENDER: REGISTER ─────────────────────────────────────────────────────────
     if (view === "register") return (
-        <div style={{ minHeight: "100vh", background: S.bg, padding: "24px 20px", fontFamily: "'Trebuchet MS', Georgia, sans-serif" }}>
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px" }}>
             <Toast {...toast} />
-            <div style={{ maxWidth: 440, margin: "0 auto" }}>
-                <button onClick={() => setView("login")} style={{ background: "none", border: "none", color: S.gold, cursor: "pointer", fontSize: 14, fontWeight: 700, marginBottom: 20, padding: 0 }}>← Back to Login</button>
+            <div style={{ width: "100%", maxWidth: 520, animation: "slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
+                <button onClick={() => setView("login")} style={{ background: "none", border: "none", color: S.gold, cursor: "pointer", fontSize: 14, fontWeight: 600, marginBottom: 24, padding: 0, display: "flex", alignItems: "center", gap: 6, transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.goldLight} onMouseLeave={e => e.target.style.color = S.gold}>← Back to Login</button>
                 <div style={{ textAlign: "center", marginBottom: 28 }}>
                     <div style={{ color: S.gold, fontSize: 20, fontWeight: 900, fontFamily: "Georgia, serif" }}>EM GROUP</div>
                     <div style={{ color: S.textMuted, fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>Request Platform Access</div>
                 </div>
-                <Card>
-                    <h2 style={{ margin: "0 0 20px", color: S.text, fontSize: 18, fontWeight: 800 }}>New User Registration</h2>
+                <Card className="glass-panel" style={{ padding: 32 }}>
+                    <h2 style={{ margin: "0 0 24px", color: S.text, fontSize: 24, fontWeight: 700, fontFamily: "var(--font-sans)" }}>New User Registration</h2>
                     <Input label="Full Name" value={regForm.name} onChange={v => setRegForm(p => ({ ...p, name: v }))} placeholder="e.g. Sipho Nkosi" required />
                     <Input label="Work Email" value={regForm.email} onChange={v => setRegForm(p => ({ ...p, email: v }))} type="email" placeholder="sipho@sibanye.com" required />
                     <Input label="Company / Department" value={regForm.dept} onChange={v => setRegForm(p => ({ ...p, dept: v }))} placeholder="e.g. Safety & Health" required />
@@ -424,353 +425,384 @@ export default function App() {
     const navTabs = TABS[currentUser?.role] || TABS.user;
 
     return (
-        <div style={{ minHeight: "100vh", background: S.bg, fontFamily: "'Trebuchet MS', Georgia, sans-serif", maxWidth: 480, margin: "0 auto", position: "relative" }}>
+        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
             <Toast {...toast} />
 
             {/* Header */}
-            <div style={{ background: S.surface, borderBottom: `1px solid ${S.border}`, padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100 }}>
-                <div>
-                    <div style={{ color: S.gold, fontSize: 16, fontWeight: 900, letterSpacing: "0.04em", fontFamily: "Georgia, serif" }}>EM GROUP</div>
-                    <div style={{ color: S.textDim, fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase" }}>Transport Scheduler</div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    {currentUser?.role === "admin" && pendingTrips.length > 0 && (
-                        <div style={{ background: S.danger, color: "#fff", borderRadius: 20, padding: "2px 8px", fontSize: 11, fontWeight: 800 }}>{pendingTrips.length} pending</div>
-                    )}
-                    <Avatar initials={currentUser?.avatar} size={34} />
-                    <button onClick={() => { setCurrentUser(null); setView("login"); }} style={{ background: "none", border: "none", color: S.textMuted, cursor: "pointer", fontSize: 20 }}>⏻</button>
-                </div>
-            </div>
-
-            {/* Content */}
-            <div style={{ padding: "16px 16px 90px" }}>
-
-                {/* ── HOME TAB ── */}
-                {tab === "home" && (
+            <header className="glass-panel" style={{ padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100, borderLeft: "none", borderRight: "none", borderRadius: 0, borderTop: "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: `0 4px 12px ${S.gold}44` }}>🚐</div>
                     <div>
-                        <div style={{ marginBottom: 20 }}>
-                            <p style={{ margin: "0 0 2px", color: S.textMuted, fontSize: 13 }}>Good day,</p>
-                            <h1 style={{ margin: 0, color: S.text, fontSize: 22, fontWeight: 900 }}>{currentUser?.name?.split(" ")[0]} 👋</h1>
-                            <p style={{ margin: "4px 0 0", color: S.textDim, fontSize: 12 }}>{currentUser?.dept} • <span style={{ color: S.gold, fontWeight: 700, textTransform: "capitalize" }}>{currentUser?.role}</span></p>
-                        </div>
-
-                        <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                            <StatCard label="My Trips" value={myTrips.length} icon="🧳" color={S.gold} sub={`${myTrips.filter(t => t.status === "completed").length} completed`} />
-                            <StatCard label={currentUser?.role === "admin" ? "Pending" : "Approved"} value={currentUser?.role === "admin" ? pendingTrips.length : myTrips.filter(t => t.status === "approved").length} icon={currentUser?.role === "admin" ? "⏳" : "✅"} color={currentUser?.role === "admin" && pendingTrips.length > 0 ? S.danger : S.success} />
-                        </div>
-
-                        {currentUser?.role === "user" && (
-                            <Card style={{ marginBottom: 16, cursor: "pointer" }} onClick={() => setTab("request")}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                                    <div style={{ width: 52, height: 52, borderRadius: 16, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🚐</div>
-                                    <div style={{ flex: 1 }}>
-                                        <p style={{ margin: 0, color: S.text, fontWeight: 800, fontSize: 16 }}>Request a Trip</p>
-                                        <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>Schedule transport to/from any Sibanye site</p>
-                                    </div>
-                                    <span style={{ color: S.gold, fontSize: 20 }}>›</span>
-                                </div>
-                            </Card>
-                        )}
-
-                        {currentUser?.role === "admin" && pendingTrips.length > 0 && (
-                            <div style={{ marginBottom: 16 }}>
-                                <h3 style={{ margin: "0 0 10px", color: S.text, fontSize: 14, fontWeight: 700 }}>🔔 Pending Approval</h3>
-                                {pendingTrips.slice(0, 2).map(t => (
-                                    <TripCard key={t.id} trip={t} role="admin" onAction={(trip, action) => {
-                                        if (action === "approve") { setModal({ open: true, type: "schedule", data: trip }); }
-                                        else { handleRejectTrip(trip); }
-                                    }} />
-                                ))}
-                            </div>
-                        )}
-
-                        {currentUser?.role === "management" && (
-                            <div style={{ marginBottom: 16 }}>
-                                <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-                                    <StatCard label="Total Trips" value={trips.length} icon="🗺️" color={S.blueLight} />
-                                    <StatCard label="Drivers Active" value={drivers.filter(d => d.status !== "off_duty").length} icon="👤" color={S.gold} />
-                                </div>
-                                <Btn onClick={() => setTab("dashboard")} style={{ width: "100%", justifyContent: "center" }}>View Full Dashboard →</Btn>
-                            </div>
-                        )}
-
-                        {/* Recent trips */}
-                        <h3 style={{ margin: "0 0 10px", color: S.text, fontSize: 14, fontWeight: 700 }}>
-                            {currentUser?.role === "admin" ? "📋 Recent Requests" : "📋 Recent Trips"}
-                        </h3>
-                        {(currentUser?.role === "admin" ? trips : myTrips).slice(-3).reverse().map(t => (
-                            <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
-                                if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
-                                else handleRejectTrip(trip);
-                            }} />
-                        ))}
+                        <div style={{ color: S.text, fontSize: 18, fontWeight: 800, letterSpacing: "0.02em", fontFamily: "var(--font-sans)" }}>EM GROUP</div>
+                        <div style={{ color: S.gold, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Transport Scheduler</div>
                     </div>
-                )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    {currentUser?.role === "admin" && pendingTrips.length > 0 && (
+                        <div style={{ background: "var(--danger-bg)", color: "var(--danger)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600 }}>{pendingTrips.length} pending</div>
+                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, paddingLeft: 16, borderLeft: `1px solid var(--border)` }}>
+                        <div style={{ textAlign: "right", display: "none" }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: S.text }}>{currentUser?.name.split(" ")[0]}</div>
+                            <div style={{ fontSize: 11, color: S.textMuted, textTransform: "capitalize" }}>{currentUser?.role}</div>
+                        </div>
+                        <Avatar initials={currentUser?.avatar} size={40} />
+                        <button onClick={() => { setCurrentUser(null); setView("login"); }} style={{ background: "var(--surface-alt)", border: `1px solid var(--border)`, color: S.textMuted, borderRadius: 10, width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = S.danger} onMouseLeave={e => e.currentTarget.style.color = S.textMuted} title="Sign Out">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
 
-                {/* ── REQUEST TRIP TAB ── */}
-                {tab === "request" && currentUser?.role === "user" && (
-                    <div>
-                        <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>New Trip Request</h2>
-                        <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Fill in your trip details below</p>
+            {/* Main Layout Container */}
+            <div style={{ display: "flex", flex: 1, position: "relative" }}>
 
-                        {/* Progress */}
-                        <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
-                            {[1, 2, 3].map(s => (
-                                <div key={s} style={{ flex: 1, height: 4, borderRadius: 4, background: s <= requestStep ? S.gold : S.border, transition: "background 0.3s" }} />
+                {/* Desktop Sidebar (hidden on mobile via CSS wrapper if we had one, handling inline for now) */}
+                <aside className="glass-panel" style={{ width: 260, padding: "32px 16px", display: "flex", flexDirection: "column", gap: 8, borderTop: "none", borderLeft: "none", borderBottom: "none", borderRadius: 0, position: "sticky", top: 73, height: "calc(100vh - 73px)" }}>
+                    <div style={{ marginBottom: 24, padding: "0 12px" }}>
+                        <p style={{ margin: 0, color: S.textMuted, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Application Menu</p>
+                    </div>
+                    {navTabs.map(t => (
+                        <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "12px 16px", background: tab === t.id ? "rgba(212, 160, 23, 0.1)" : "transparent", border: "none", borderRadius: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s", color: tab === t.id ? S.gold : S.textMuted, textAlign: "left" }} onMouseEnter={e => { if (tab !== t.id) e.currentTarget.style.background = "var(--surface-alt)"; e.currentTarget.style.color = S.text; }} onMouseLeave={e => { if (tab !== t.id) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = S.textMuted; } else { e.currentTarget.style.color = S.gold; } }}>
+                            <span style={{ fontSize: 20 }}>{t.icon}</span>
+                            <span style={{ fontSize: 15, fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
+                            {t.id === "trips" && currentUser?.role === "admin" && pendingTrips.length > 0 && (
+                                <span style={{ marginLeft: "auto", background: S.danger, width: 8, height: 8, borderRadius: "50%" }} />
+                            )}
+                        </button>
+                    ))}
+                </aside>
+
+                {/* Main Content Area */}
+                <main style={{ flex: 1, padding: "32px 40px", maxWidth: 1200, margin: "0 auto", width: "100%", animation: "fadeIn 0.4s ease-out" }}>
+                    <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } @media (max-width: 768px) { aside { display: none !important; } main { padding: 20px 16px 100px !important; } .mobile-nav { display: flex !important; } .grid-desktop { grid-template-columns: 1fr !important; } } .mobile-nav { display: none; } .grid-desktop { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }`}</style>
+
+
+                    {/* ── HOME TAB ── */}
+                    {tab === "home" && (
+                        <div>
+                            <div style={{ marginBottom: 20 }}>
+                                <p style={{ margin: "0 0 2px", color: S.textMuted, fontSize: 13 }}>Good day,</p>
+                                <h1 style={{ margin: 0, color: S.text, fontSize: 22, fontWeight: 900 }}>{currentUser?.name?.split(" ")[0]} 👋</h1>
+                                <p style={{ margin: "4px 0 0", color: S.textDim, fontSize: 12 }}>{currentUser?.dept} • <span style={{ color: S.gold, fontWeight: 700, textTransform: "capitalize" }}>{currentUser?.role}</span></p>
+                            </div>
+
+                            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                                <StatCard label="My Trips" value={myTrips.length} icon="🧳" color={S.gold} sub={`${myTrips.filter(t => t.status === "completed").length} completed`} />
+                                <StatCard label={currentUser?.role === "admin" ? "Pending" : "Approved"} value={currentUser?.role === "admin" ? pendingTrips.length : myTrips.filter(t => t.status === "approved").length} icon={currentUser?.role === "admin" ? "⏳" : "✅"} color={currentUser?.role === "admin" && pendingTrips.length > 0 ? S.danger : S.success} />
+                            </div>
+
+                            {currentUser?.role === "user" && (
+                                <Card style={{ marginBottom: 16, cursor: "pointer" }} onClick={() => setTab("request")}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                                        <div style={{ width: 52, height: 52, borderRadius: 16, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🚐</div>
+                                        <div style={{ flex: 1 }}>
+                                            <p style={{ margin: 0, color: S.text, fontWeight: 800, fontSize: 16 }}>Request a Trip</p>
+                                            <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>Schedule transport to/from any Sibanye site</p>
+                                        </div>
+                                        <span style={{ color: S.gold, fontSize: 20 }}>›</span>
+                                    </div>
+                                </Card>
+                            )}
+
+                            {currentUser?.role === "admin" && pendingTrips.length > 0 && (
+                                <div style={{ marginBottom: 16 }}>
+                                    <h3 style={{ margin: "0 0 10px", color: S.text, fontSize: 14, fontWeight: 700 }}>🔔 Pending Approval</h3>
+                                    {pendingTrips.slice(0, 2).map(t => (
+                                        <TripCard key={t.id} trip={t} role="admin" onAction={(trip, action) => {
+                                            if (action === "approve") { setModal({ open: true, type: "schedule", data: trip }); }
+                                            else { handleRejectTrip(trip); }
+                                        }} />
+                                    ))}
+                                </div>
+                            )}
+
+                            {currentUser?.role === "management" && (
+                                <div style={{ marginBottom: 16 }}>
+                                    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                                        <StatCard label="Total Trips" value={trips.length} icon="🗺️" color={S.blueLight} />
+                                        <StatCard label="Drivers Active" value={drivers.filter(d => d.status !== "off_duty").length} icon="👤" color={S.gold} />
+                                    </div>
+                                    <Btn onClick={() => setTab("dashboard")} style={{ width: "100%", justifyContent: "center" }}>View Full Dashboard →</Btn>
+                                </div>
+                            )}
+
+                            {/* Recent trips */}
+                            <h3 style={{ margin: "0 0 10px", color: S.text, fontSize: 14, fontWeight: 700 }}>
+                                {currentUser?.role === "admin" ? "📋 Recent Requests" : "📋 Recent Trips"}
+                            </h3>
+                            {(currentUser?.role === "admin" ? trips : myTrips).slice(-3).reverse().map(t => (
+                                <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
+                                    if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
+                                    else handleRejectTrip(trip);
+                                }} />
                             ))}
                         </div>
+                    )}
 
-                        {requestStep === 1 && (
-                            <Card>
-                                <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 1: Locations</h3>
-                                <div style={{ background: S.surfaceAlt, borderRadius: 14, padding: 14, marginBottom: 14, position: "relative" }}>
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                                        <div>
-                                            <p style={{ margin: "0 0 4px", color: S.gold, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>📍 Pickup Location</p>
-                                            <select value={tripForm.pickup} onChange={e => setTripForm(p => ({ ...p, pickup: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: tripForm.pickup ? S.text : S.textMuted, fontSize: 14, fontFamily: "inherit", outline: "none", padding: "4px 0" }}>
-                                                <option value="">Select pickup location...</option>
-                                                {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-                                            </select>
-                                        </div>
-                                        <div style={{ height: 1, background: S.border }} />
-                                        <div>
-                                            <p style={{ margin: "0 0 4px", color: S.success, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>🏁 Destination</p>
-                                            <select value={tripForm.destination} onChange={e => setTripForm(p => ({ ...p, destination: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: tripForm.destination ? S.text : S.textMuted, fontSize: 14, fontFamily: "inherit", outline: "none", padding: "4px 0" }}>
-                                                <option value="">Select destination...</option>
-                                                {LOCATIONS.filter(l => l !== tripForm.pickup).map(l => <option key={l} value={l}>{l}</option>)}
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <Btn onClick={() => { if (!tripForm.pickup || !tripForm.destination) return showToast("Select both locations", "error"); setRequestStep(2); }} style={{ width: "100%", justifyContent: "center" }} size="lg">Continue →</Btn>
-                            </Card>
-                        )}
-
-                        {requestStep === 2 && (
-                            <Card>
-                                <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 2: Date & Details</h3>
-                                <div style={{ display: "flex", gap: 10 }}>
-                                    <div style={{ flex: 1 }}><Input label="Date" value={tripForm.date} onChange={v => setTripForm(p => ({ ...p, date: v }))} type="date" required min={new Date().toISOString().split("T")[0]} /></div>
-                                    <div style={{ flex: 1 }}><Input label="Time" value={tripForm.time} onChange={v => setTripForm(p => ({ ...p, time: v }))} type="time" required /></div>
-                                </div>
-                                <Input label="Purpose of Trip" value={tripForm.purpose} onChange={v => setTripForm(p => ({ ...p, purpose: v }))} options={PURPOSES.map(p => ({ value: p, label: p }))} required />
-                                <Input label="Number of Passengers" value={tripForm.passengers} onChange={v => setTripForm(p => ({ ...p, passengers: v }))} type="number" min="1" />
-                                <Input label="Additional Notes (optional)" value={tripForm.notes} onChange={v => setTripForm(p => ({ ...p, notes: v }))} placeholder="Any special requirements..." />
-                                <div style={{ display: "flex", gap: 10 }}>
-                                    <Btn variant="outline" onClick={() => setRequestStep(1)} style={{ flex: 1, justifyContent: "center" }}>← Back</Btn>
-                                    <Btn onClick={() => { if (!tripForm.date || !tripForm.time || !tripForm.purpose) return showToast("Fill all required fields", "error"); setRequestStep(3); }} style={{ flex: 2, justifyContent: "center" }}>Review →</Btn>
-                                </div>
-                            </Card>
-                        )}
-
-                        {requestStep === 3 && (
-                            <Card>
-                                <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 3: Confirm Request</h3>
-                                {[["📍 From", tripForm.pickup], ["🏁 To", tripForm.destination], ["📅 Date", `${tripForm.date} at ${tripForm.time}`], ["🎯 Purpose", tripForm.purpose], ["👥 Passengers", tripForm.passengers]].map(([label, val]) => (
-                                    <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${S.border}` }}>
-                                        <span style={{ color: S.textMuted, fontSize: 13 }}>{label}</span>
-                                        <span style={{ color: S.text, fontSize: 13, fontWeight: 700, maxWidth: "55%", textAlign: "right" }}>{val}</span>
-                                    </div>
-                                ))}
-                                <div style={{ marginTop: 14, padding: 12, background: `${S.blue}18`, border: `1px solid ${S.blue}33`, borderRadius: 10 }}>
-                                    <p style={{ margin: 0, color: "#7DBFFF", fontSize: 12 }}>📆 Upon approval, your Microsoft Teams calendar and the transport department calendar will be automatically updated.</p>
-                                </div>
-                                <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                                    <Btn variant="outline" onClick={() => setRequestStep(2)} style={{ flex: 1, justifyContent: "center" }}>← Edit</Btn>
-                                    <Btn onClick={handleRequestTrip} style={{ flex: 2, justifyContent: "center" }} size="lg">✓ Submit Request</Btn>
-                                </div>
-                            </Card>
-                        )}
-                    </div>
-                )}
-
-                {/* ── TRIPS TAB ── */}
-                {tab === "trips" && (
-                    <div>
-                        <h2 style={{ margin: "0 0 16px", color: S.text, fontSize: 20, fontWeight: 900 }}>
-                            {currentUser?.role === "admin" ? "All Trip Requests" : "My Trips"}
-                        </h2>
-                        {(currentUser?.role === "admin" ? trips : myTrips).slice().reverse().map(t => (
-                            <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
-                                if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
-                                else handleRejectTrip(trip);
-                            }} />
-                        ))}
-                    </div>
-                )}
-
-                {/* ── FLEET TAB ── */}
-                {tab === "fleet" && (
-                    <div>
-                        <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Fleet Management</h2>
-                        <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Vehicles & Drivers</p>
-
-                        <h3 style={{ margin: "0 0 10px", color: S.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>🚐 Vehicles ({vehicles.length})</h3>
-                        {vehicles.map(v => (
-                            <Card key={v.id} style={{ marginBottom: 10 }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                                    <div>
-                                        <p style={{ margin: 0, color: S.text, fontWeight: 800, fontSize: 15 }}>{v.name}</p>
-                                        <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>{v.plate} • {v.type} • Cap: {v.capacity}</p>
-                                        <p style={{ margin: "4px 0 0", color: S.textDim, fontSize: 11 }}>Last service: {v.lastService}</p>
-                                    </div>
-                                    <div style={{ textAlign: "right" }}>
-                                        <Badge status={v.status} />
-                                        <p style={{ margin: "6px 0 0", color: S.gold, fontSize: 13, fontWeight: 700 }}>{v.trips} trips</p>
-                                    </div>
-                                </div>
-                            </Card>
-                        ))}
-
-                        <h3 style={{ margin: "16px 0 10px", color: S.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>👤 Drivers ({drivers.length})</h3>
-                        {drivers.map(d => (
-                            <Card key={d.id} style={{ marginBottom: 10 }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                                        <Avatar initials={d.name.split(" ").map(n => n[0]).join("")} size={40} color={S.blueLight} />
-                                        <div>
-                                            <p style={{ margin: 0, color: S.text, fontWeight: 700, fontSize: 14 }}>{d.name}</p>
-                                            <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>{d.phone} • {d.license}</p>
-                                        </div>
-                                    </div>
-                                    <div style={{ textAlign: "right" }}>
-                                        <Badge status={d.status} />
-                                        <p style={{ margin: "4px 0 0", color: S.gold, fontSize: 13, fontWeight: 700 }}>{d.trips} trips</p>
-                                    </div>
-                                </div>
-                            </Card>
-                        ))}
-                    </div>
-                )}
-
-                {/* ── USERS TAB (admin) ── */}
-                {
-                    tab === "users" && currentUser?.role === "admin" && (
+                    {/* ── REQUEST TRIP TAB ── */}
+                    {tab === "request" && currentUser?.role === "user" && (
                         <div>
-                            <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>User Management</h2>
-                            <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Manage platform access & roles</p>
-                            {users.map(u => (
-                                <Card key={u.id} style={{ marginBottom: 10 }}>
+                            <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>New Trip Request</h2>
+                            <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Fill in your trip details below</p>
+
+                            {/* Progress */}
+                            <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
+                                {[1, 2, 3].map(s => (
+                                    <div key={s} style={{ flex: 1, height: 4, borderRadius: 4, background: s <= requestStep ? S.gold : S.border, transition: "background 0.3s" }} />
+                                ))}
+                            </div>
+
+                            {requestStep === 1 && (
+                                <Card>
+                                    <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 1: Locations</h3>
+                                    <div style={{ background: S.surfaceAlt, borderRadius: 14, padding: 14, marginBottom: 14, position: "relative" }}>
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                            <div>
+                                                <p style={{ margin: "0 0 4px", color: S.gold, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>📍 Pickup Location</p>
+                                                <select value={tripForm.pickup} onChange={e => setTripForm(p => ({ ...p, pickup: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: tripForm.pickup ? S.text : S.textMuted, fontSize: 14, fontFamily: "inherit", outline: "none", padding: "4px 0" }}>
+                                                    <option value="">Select pickup location...</option>
+                                                    {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                                                </select>
+                                            </div>
+                                            <div style={{ height: 1, background: S.border }} />
+                                            <div>
+                                                <p style={{ margin: "0 0 4px", color: S.success, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>🏁 Destination</p>
+                                                <select value={tripForm.destination} onChange={e => setTripForm(p => ({ ...p, destination: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: tripForm.destination ? S.text : S.textMuted, fontSize: 14, fontFamily: "inherit", outline: "none", padding: "4px 0" }}>
+                                                    <option value="">Select destination...</option>
+                                                    {LOCATIONS.filter(l => l !== tripForm.pickup).map(l => <option key={l} value={l}>{l}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Btn onClick={() => { if (!tripForm.pickup || !tripForm.destination) return showToast("Select both locations", "error"); setRequestStep(2); }} style={{ width: "100%", justifyContent: "center" }} size="lg">Continue →</Btn>
+                                </Card>
+                            )}
+
+                            {requestStep === 2 && (
+                                <Card>
+                                    <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 2: Date & Details</h3>
+                                    <div style={{ display: "flex", gap: 10 }}>
+                                        <div style={{ flex: 1 }}><Input label="Date" value={tripForm.date} onChange={v => setTripForm(p => ({ ...p, date: v }))} type="date" required min={new Date().toISOString().split("T")[0]} /></div>
+                                        <div style={{ flex: 1 }}><Input label="Time" value={tripForm.time} onChange={v => setTripForm(p => ({ ...p, time: v }))} type="time" required /></div>
+                                    </div>
+                                    <Input label="Purpose of Trip" value={tripForm.purpose} onChange={v => setTripForm(p => ({ ...p, purpose: v }))} options={PURPOSES.map(p => ({ value: p, label: p }))} required />
+                                    <Input label="Number of Passengers" value={tripForm.passengers} onChange={v => setTripForm(p => ({ ...p, passengers: v }))} type="number" min="1" />
+                                    <Input label="Additional Notes (optional)" value={tripForm.notes} onChange={v => setTripForm(p => ({ ...p, notes: v }))} placeholder="Any special requirements..." />
+                                    <div style={{ display: "flex", gap: 10 }}>
+                                        <Btn variant="outline" onClick={() => setRequestStep(1)} style={{ flex: 1, justifyContent: "center" }}>← Back</Btn>
+                                        <Btn onClick={() => { if (!tripForm.date || !tripForm.time || !tripForm.purpose) return showToast("Fill all required fields", "error"); setRequestStep(3); }} style={{ flex: 2, justifyContent: "center" }}>Review →</Btn>
+                                    </div>
+                                </Card>
+                            )}
+
+                            {requestStep === 3 && (
+                                <Card>
+                                    <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 3: Confirm Request</h3>
+                                    {[["📍 From", tripForm.pickup], ["🏁 To", tripForm.destination], ["📅 Date", `${tripForm.date} at ${tripForm.time}`], ["🎯 Purpose", tripForm.purpose], ["👥 Passengers", tripForm.passengers]].map(([label, val]) => (
+                                        <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${S.border}` }}>
+                                            <span style={{ color: S.textMuted, fontSize: 13 }}>{label}</span>
+                                            <span style={{ color: S.text, fontSize: 13, fontWeight: 700, maxWidth: "55%", textAlign: "right" }}>{val}</span>
+                                        </div>
+                                    ))}
+                                    <div style={{ marginTop: 14, padding: 12, background: `${S.blue}18`, border: `1px solid ${S.blue}33`, borderRadius: 10 }}>
+                                        <p style={{ margin: 0, color: "#7DBFFF", fontSize: 12 }}>📆 Upon approval, your Microsoft Teams calendar and the transport department calendar will be automatically updated.</p>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                                        <Btn variant="outline" onClick={() => setRequestStep(2)} style={{ flex: 1, justifyContent: "center" }}>← Edit</Btn>
+                                        <Btn onClick={handleRequestTrip} style={{ flex: 2, justifyContent: "center" }} size="lg">✓ Submit Request</Btn>
+                                    </div>
+                                </Card>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ── TRIPS TAB ── */}
+                    {tab === "trips" && (
+                        <div>
+                            <h2 style={{ margin: "0 0 16px", color: S.text, fontSize: 20, fontWeight: 900 }}>
+                                {currentUser?.role === "admin" ? "All Trip Requests" : "My Trips"}
+                            </h2>
+                            {(currentUser?.role === "admin" ? trips : myTrips).slice().reverse().map(t => (
+                                <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
+                                    if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
+                                    else handleRejectTrip(trip);
+                                }} />
+                            ))}
+                        </div>
+                    )}
+
+                    {/* ── FLEET TAB ── */}
+                    {tab === "fleet" && (
+                        <div>
+                            <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Fleet Management</h2>
+                            <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Vehicles & Drivers</p>
+
+                            <h3 style={{ margin: "0 0 10px", color: S.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>🚐 Vehicles ({vehicles.length})</h3>
+                            {vehicles.map(v => (
+                                <Card key={v.id} style={{ marginBottom: 10 }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                        <div>
+                                            <p style={{ margin: 0, color: S.text, fontWeight: 800, fontSize: 15 }}>{v.name}</p>
+                                            <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>{v.plate} • {v.type} • Cap: {v.capacity}</p>
+                                            <p style={{ margin: "4px 0 0", color: S.textDim, fontSize: 11 }}>Last service: {v.lastService}</p>
+                                        </div>
+                                        <div style={{ textAlign: "right" }}>
+                                            <Badge status={v.status} />
+                                            <p style={{ margin: "6px 0 0", color: S.gold, fontSize: 13, fontWeight: 700 }}>{v.trips} trips</p>
+                                        </div>
+                                    </div>
+                                </Card>
+                            ))}
+
+                            <h3 style={{ margin: "16px 0 10px", color: S.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>👤 Drivers ({drivers.length})</h3>
+                            {drivers.map(d => (
+                                <Card key={d.id} style={{ marginBottom: 10 }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                                            <Avatar initials={u.avatar} size={40} color={u.role === "admin" ? S.danger : u.role === "management" ? S.gold : S.blueLight} />
+                                            <Avatar initials={d.name.split(" ").map(n => n[0]).join("")} size={40} color={S.blueLight} />
                                             <div>
-                                                <p style={{ margin: 0, color: S.text, fontWeight: 700, fontSize: 14 }}>{u.name}</p>
-                                                <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>{u.dept}</p>
-                                                <p style={{ margin: "2px 0 0", color: S.textDim, fontSize: 11 }}>{u.email}</p>
+                                                <p style={{ margin: 0, color: S.text, fontWeight: 700, fontSize: 14 }}>{d.name}</p>
+                                                <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>{d.phone} • {d.license}</p>
                                             </div>
                                         </div>
                                         <div style={{ textAlign: "right" }}>
-                                            <Badge status={u.status} />
-                                            <p style={{ margin: "4px 0 0", color: S.textMuted, fontSize: 11, textTransform: "capitalize" }}>{u.role}</p>
-                                            {u.status === "pending" && (
-                                                <Btn variant="success" size="sm" onClick={() => handleApproveUser(u.id)} style={{ marginTop: 6 }}>Approve</Btn>
-                                            )}
+                                            <Badge status={d.status} />
+                                            <p style={{ margin: "4px 0 0", color: S.gold, fontSize: 13, fontWeight: 700 }}>{d.trips} trips</p>
                                         </div>
                                     </div>
                                 </Card>
                             ))}
                         </div>
-                    )
-                }
+                    )}
 
-                {/* ── DASHBOARD TAB (management) ── */}
-                {
-                    tab === "dashboard" && currentUser?.role === "management" && (
-                        <div>
-                            <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Management Dashboard</h2>
-                            <p style={{ margin: "0 0 16px", color: S.textMuted, fontSize: 13 }}>Sibanye Stillwater Transport Overview</p>
-
-                            {/* Period selector */}
-                            <div style={{ display: "flex", gap: 6, marginBottom: 20, background: S.surface, border: `1px solid ${S.border}`, borderRadius: 12, padding: 4 }}>
-                                {["weekly", "monthly", "quarterly"].map(p => (
-                                    <button key={p} onClick={() => setChartPeriod(p)} style={{ flex: 1, padding: "8px 0", borderRadius: 9, border: "none", background: chartPeriod === p ? S.gold : "transparent", color: chartPeriod === p ? "#0D1117" : S.textMuted, fontWeight: 700, fontSize: 12, cursor: "pointer", textTransform: "capitalize", fontFamily: "inherit" }}>{p}</button>
+                    {/* ── USERS TAB (admin) ── */}
+                    {
+                        tab === "users" && currentUser?.role === "admin" && (
+                            <div>
+                                <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>User Management</h2>
+                                <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Manage platform access & roles</p>
+                                {users.map(u => (
+                                    <Card key={u.id} style={{ marginBottom: 10 }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                                                <Avatar initials={u.avatar} size={40} color={u.role === "admin" ? S.danger : u.role === "management" ? S.gold : S.blueLight} />
+                                                <div>
+                                                    <p style={{ margin: 0, color: S.text, fontWeight: 700, fontSize: 14 }}>{u.name}</p>
+                                                    <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>{u.dept}</p>
+                                                    <p style={{ margin: "2px 0 0", color: S.textDim, fontSize: 11 }}>{u.email}</p>
+                                                </div>
+                                            </div>
+                                            <div style={{ textAlign: "right" }}>
+                                                <Badge status={u.status} />
+                                                <p style={{ margin: "4px 0 0", color: S.textMuted, fontSize: 11, textTransform: "capitalize" }}>{u.role}</p>
+                                                {u.status === "pending" && (
+                                                    <Btn variant="success" size="sm" onClick={() => handleApproveUser(u.id)} style={{ marginTop: 6 }}>Approve</Btn>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </Card>
                                 ))}
                             </div>
+                        )
+                    }
 
-                            {/* KPI cards */}
-                            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                                <StatCard label="Total Trips" value={trips.length} icon="🗺️" color={S.gold} />
-                                <StatCard label="Completed" value={totalCompleted} icon="✅" color={S.success} />
-                            </div>
-                            <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-                                <StatCard label="Active Drivers" value={drivers.filter(d => d.status !== "off_duty").length} icon="👤" color={S.blueLight} />
-                                <StatCard label="Fleet Available" value={vehicles.filter(v => v.status === "available").length} icon="🚐" color={S.warning} />
-                            </div>
+                    {/* ── DASHBOARD TAB (management) ── */}
+                    {
+                        tab === "dashboard" && currentUser?.role === "management" && (
+                            <div>
+                                <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Management Dashboard</h2>
+                                <p style={{ margin: "0 0 16px", color: S.textMuted, fontSize: 13 }}>Sibanye Stillwater Transport Overview</p>
 
-                            {/* Trips over time chart */}
-                            <Card style={{ marginBottom: 16 }}>
-                                <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>
-                                    📈 Trips Over Time ({chartPeriod === "weekly" ? "Weekly" : chartPeriod === "monthly" ? "Monthly" : "Quarterly"})
-                                </h3>
-                                <ResponsiveContainer width="100%" height={180}>
-                                    <BarChart data={chartPeriod === "weekly" ? WEEKLY_TRIPS : MONTHLY_TRIPS} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke={S.border} />
-                                        <XAxis dataKey={chartPeriod === "weekly" ? "week" : "month"} tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                                        <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
-                                        <Bar dataKey="trips" fill={S.gold} radius={[6, 6, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </Card>
-
-                            {/* Driver allocation */}
-                            <Card style={{ marginBottom: 16 }}>
-                                <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>👤 Driver Trip Allocation</h3>
-                                <ResponsiveContainer width="100%" height={160}>
-                                    <BarChart data={DRIVER_ALLOCATION} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke={S.border} horizontal={false} />
-                                        <XAxis type="number" tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                                        <YAxis type="category" dataKey="name" tick={{ fill: S.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} width={72} />
-                                        <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
-                                        <Bar dataKey="trips" fill={S.blueLight} radius={[0, 6, 6, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </Card>
-
-                            {/* Vehicle usage pie */}
-                            <Card style={{ marginBottom: 16 }}>
-                                <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>🚐 Vehicle Trip Share</h3>
-                                <ResponsiveContainer width="100%" height={200}>
-                                    <PieChart>
-                                        <Pie data={VEHICLE_STATS} dataKey="trips" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
-                                            {VEHICLE_STATS.map((entry, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
-                                        </Pie>
-                                        <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
-                                    {VEHICLE_STATS.map((v, i) => (
-                                        <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                                            <div style={{ width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[i] }} />
-                                            <span style={{ color: S.textMuted, fontSize: 11 }}>{v.name}: {v.trips}</span>
-                                        </div>
+                                {/* Period selector */}
+                                <div style={{ display: "flex", gap: 6, marginBottom: 20, background: S.surface, border: `1px solid ${S.border}`, borderRadius: 12, padding: 4 }}>
+                                    {["weekly", "monthly", "quarterly"].map(p => (
+                                        <button key={p} onClick={() => setChartPeriod(p)} style={{ flex: 1, padding: "8px 0", borderRadius: 9, border: "none", background: chartPeriod === p ? S.gold : "transparent", color: chartPeriod === p ? "#0D1117" : S.textMuted, fontWeight: 700, fontSize: 12, cursor: "pointer", textTransform: "capitalize", fontFamily: "inherit" }}>{p}</button>
                                     ))}
                                 </div>
-                            </Card>
 
-                            {/* Driver hours vs trips */}
-                            <Card>
-                                <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>⏱ Driver Hours vs Trips</h3>
-                                <ResponsiveContainer width="100%" height={160}>
-                                    <LineChart data={DRIVER_ALLOCATION} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke={S.border} />
-                                        <XAxis dataKey="name" tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                                        <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
-                                        <Line type="monotone" dataKey="trips" stroke={S.gold} strokeWidth={2} dot={{ fill: S.gold, r: 4 }} name="Trips" />
-                                        <Line type="monotone" dataKey="hours" stroke={S.blueLight} strokeWidth={2} dot={{ fill: S.blueLight, r: 4 }} name="Hours" />
-                                        <Legend wrapperStyle={{ fontSize: 11, color: S.textMuted }} />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </Card>
-                        </div>
-                    )
-                }
+                                {/* KPI cards */}
+                                <div className="grid-desktop" style={{ marginBottom: 24 }}>
+                                    <StatCard label="Total Trips" value={trips.length} icon="🗺️" color={S.gold} />
+                                    <StatCard label="Completed" value={totalCompleted} icon="✅" color={S.success} />
+                                    <StatCard label="Active Drivers" value={drivers.filter(d => d.status !== "off_duty").length} icon="👤" color={S.blueLight} />
+                                    <StatCard label="Fleet Available" value={vehicles.filter(v => v.status === "available").length} icon="🚐" color={S.warning} />
+                                </div>
+
+                                {/* Trips over time chart */}
+                                <Card style={{ marginBottom: 16 }}>
+                                    <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>
+                                        📈 Trips Over Time ({chartPeriod === "weekly" ? "Weekly" : chartPeriod === "monthly" ? "Monthly" : "Quarterly"})
+                                    </h3>
+                                    <ResponsiveContainer width="100%" height={180}>
+                                        <BarChart data={chartPeriod === "weekly" ? WEEKLY_TRIPS : MONTHLY_TRIPS} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke={S.border} />
+                                            <XAxis dataKey={chartPeriod === "weekly" ? "week" : "month"} tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <YAxis tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
+                                            <Bar dataKey="trips" fill={S.gold} radius={[6, 6, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </Card>
+
+                                {/* Driver allocation */}
+                                <Card style={{ marginBottom: 16 }}>
+                                    <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>👤 Driver Trip Allocation</h3>
+                                    <ResponsiveContainer width="100%" height={160}>
+                                        <BarChart data={DRIVER_ALLOCATION} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke={S.border} horizontal={false} />
+                                            <XAxis type="number" tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="name" tick={{ fill: S.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} width={72} />
+                                            <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
+                                            <Bar dataKey="trips" fill={S.blueLight} radius={[0, 6, 6, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </Card>
+
+                                {/* Vehicle usage pie */}
+                                <Card style={{ marginBottom: 16 }}>
+                                    <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>🚐 Vehicle Trip Share</h3>
+                                    <ResponsiveContainer width="100%" height={200}>
+                                        <PieChart>
+                                            <Pie data={VEHICLE_STATS} dataKey="trips" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
+                                                {VEHICLE_STATS.map((entry, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+                                            </Pie>
+                                            <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+                                        {VEHICLE_STATS.map((v, i) => (
+                                            <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                                <div style={{ width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[i] }} />
+                                                <span style={{ color: S.textMuted, fontSize: 11 }}>{v.name}: {v.trips}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Card>
+
+                                {/* Driver hours vs trips */}
+                                <Card>
+                                    <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>⏱ Driver Hours vs Trips</h3>
+                                    <ResponsiveContainer width="100%" height={160}>
+                                        <LineChart data={DRIVER_ALLOCATION} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke={S.border} />
+                                            <XAxis dataKey="name" tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <YAxis tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                                            <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
+                                            <Line type="monotone" dataKey="trips" stroke={S.gold} strokeWidth={2} dot={{ fill: S.gold, r: 4 }} name="Trips" />
+                                            <Line type="monotone" dataKey="hours" stroke={S.blueLight} strokeWidth={2} dot={{ fill: S.blueLight, r: 4 }} name="Hours" />
+                                            <Legend wrapperStyle={{ fontSize: 11, color: S.textMuted }} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </Card>
+                            </div>
+                        )
+                    }
+                </main>
             </div >
 
-            {/* Bottom Nav */}
-            < div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: S.surface, borderTop: `1px solid ${S.border}`, display: "flex", zIndex: 100 }}>
+            {/* Bottom Nav (Mobile Only) */}
+            < div className="mobile-nav" style={{ position: "fixed", bottom: 0, left: 0, width: "100%", background: "var(--surface)", backdropFilter: "blur(12px)", borderTop: `1px solid var(--border)`, zIndex: 100, paddingBottom: "env(safe-area-inset-bottom)" }}>
                 {
                     navTabs.map(t => (
                         <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "12px 4px 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, position: "relative" }}>
