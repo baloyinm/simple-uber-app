@@ -4,32 +4,37 @@
   --font-sans: 'Outfit', 'Trebuchet MS', sans-serif;
   --font-serif: 'Playfair Display', Georgia, serif;
 
-  --bg-color: #06090e;
-  --surface: rgba(18, 23, 35, 0.7);
-  --surface-alt: #161c29;
-  --surface-hover: rgba(26, 33, 50, 0.8);
-  --border-light: rgba(255, 255, 255, 0.05);
-  --border: rgba(255, 255, 255, 0.1);
-  --border-focus: rgba(212, 160, 23, 0.5);
+  --bg-color: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #f0f2f5;
+  --surface-hover: #e5e7eb;
+  --border-light: rgba(141, 198, 63, 0.15);
+  /* light green tint */
+  --border: rgba(141, 198, 63, 0.3);
+  --border-focus: rgba(253, 184, 19, 0.6);
+  /* gold focus */
 
-  --gold: #D4A017;
-  --gold-light: #F0C040;
-  --gold-glow: rgba(212, 160, 23, 0.2);
-  --blue: #1A6FA8;
-  --blue-light: #2A8FD8;
-  --success: #22c55e;
-  --success-bg: rgba(34, 197, 94, 0.15);
+  --gold: #fdb813;
+  /* Sibanye Gold/Yellow */
+  --gold-light: #fecd45;
+  --gold-glow: rgba(253, 184, 19, 0.25);
+  --blue: #8dc63f;
+  /* Sibanye Leaf Green (replacing blue) */
+  --blue-light: #a3d45e;
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.15);
   --danger: #ef4444;
   --danger-bg: rgba(239, 68, 68, 0.15);
   --warning: #f59e0b;
 
-  --text-main: #f1f5f9;
-  --text-muted: #94a3b8;
-  --text-dim: #475569;
+  --text-main: #414042;
+  /* Charcoal grey for high contrast on white */
+  --text-muted: #6b7280;
+  --text-dim: #9ca3af;
 
-  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.12), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
   --shadow-glow: 0 0 20px var(--gold-glow);
 
   --radius-sm: 8px;
@@ -52,26 +57,26 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
-  /* Add a modern radial gradient background */
+  /* Add a modern radial gradient background using Green and Gold */
   background-image:
-    radial-gradient(circle at 15% 50%, rgba(212, 160, 23, 0.05) 0%, transparent 50%),
-    radial-gradient(circle at 85% 30%, rgba(42, 143, 216, 0.04) 0%, transparent 50%);
+    radial-gradient(circle at 15% 50%, rgba(141, 198, 63, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 85% 30%, rgba(253, 184, 19, 0.06) 0%, transparent 50%);
   background-attachment: fixed;
 }
 
-/* Glassmorphism helpers */
+/* Glassmorphism helpers strongly modified for Light theme */
 .glass-panel {
   background: var(--surface);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-light);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: var(--shadow-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.8);
+  border-left: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: var(--shadow-sm);
 }
 
 .glass-card {
-  background: rgba(22, 28, 41, 0.6);
+  background: #ffffff;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
@@ -81,9 +86,9 @@ body {
 
 .glass-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
-  border-color: rgba(212, 160, 23, 0.3);
-  background: rgba(26, 33, 50, 0.7);
+  box-shadow: var(--shadow-md), var(--shadow-glow);
+  border-color: rgba(253, 184, 19, 0.4);
+  background: #fdfdfd;
 }
 
 /* Scrollbar styling for modern dark apps */

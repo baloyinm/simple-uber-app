@@ -6,8 +6,9 @@ const MOCK_USERS = [
     { id: 1, name: "Tumisho Motsepe", email: "tumisho@emgcompanies.co.za", role: "admin", status: "active", dept: "Operations", avatar: "TM" },
     { id: 2, name: "Enock Sithole", email: "enock@emgcompanies.co.za", role: "management", status: "active", dept: "Management", avatar: "ES" },
     { id: 3, name: "Sarah Dlamini", email: "sarah@sibanye.com", role: "user", status: "active", dept: "Safety", avatar: "SD" },
-    { id: 4, name: "James Modise", email: "james@sibanye.com", role: "user", status: "pending", dept: "Engineering", avatar: "JM" },
-    { id: 5, name: "Lindiwe Nkosi", email: "lindiwe@sibanye.com", role: "user", status: "active", dept: "HR", avatar: "LN" },
+    { id: 4, name: "James Modise", email: "james@sibanye.com", role: "user", status: "pending", dept: "Engineering", avatar: "JM", phone: "082 123 0004", zNumber: "Z004" },
+    { id: 5, name: "Lindiwe Nkosi", email: "lindiwe@sibanye.com", role: "user", status: "active", dept: "HR", avatar: "LN", phone: "082 123 0005", zNumber: "Z005" },
+    { id: 6, name: "Sipho Mahlangu", email: "driver@demo", role: "driver", status: "active", dept: "Transport", avatar: "SM", phone: "082 111 2233", zNumber: "Z006", picture: "https://i.pravatar.cc/150?img=11" },
 ];
 
 const MOCK_DRIVERS = [
@@ -101,11 +102,12 @@ const Badge = ({ status }) => {
     );
 };
 
-const Avatar = ({ initials, size = 36, color = S.gold }) => (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: `${color}22`, border: `2px solid ${color}55`, display: "flex", alignItems: "center", justifyContent: "center", color, fontSize: size * 0.38, fontWeight: 800, fontFamily: "Georgia, serif", flexShrink: 0 }}>
+const Avatar = ({ initials, picture, size = 36, color = S.gold }) => {
+    if (picture) return <img src={picture} alt="Avatar" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: `2px solid ${color}55` }} />;
+    return <div style={{ width: size, height: size, borderRadius: "50%", background: `${color}22`, border: `2px solid ${color}55`, display: "flex", alignItems: "center", justifyContent: "center", color, fontSize: size * 0.38, fontWeight: 800, fontFamily: "Georgia, serif", flexShrink: 0 }}>
         {initials}
-    </div>
-);
+    </div>;
+};
 
 const Card = ({ children, style, className = "" }) => (
     <div className={`glass-card ${className}`} style={{ padding: 24, ...style }}>
@@ -204,11 +206,22 @@ const TripCard = ({ trip, onAction, role }) => (
                 <p style={{ margin: 0, fontSize: 12, color: S.text, fontWeight: 600 }}>{trip.destination}</p>
             </div>
         </div>
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
             <span style={{ fontSize: 12, color: S.textMuted }}>📅 {trip.date} at {trip.time}</span>
             <span style={{ fontSize: 12, color: S.textMuted }}>👥 {trip.passengers} pax</span>
-            {trip.driver && <span style={{ fontSize: 12, color: S.textMuted }}>🚗 {trip.driver}</span>}
+            {role === "user" && trip.driver && <span style={{ fontSize: 12, color: S.textMuted }}>👤 {trip.driver} | 🚐 {trip.plate || trip.vehicle}</span>}
+            {role === "driver" && <span style={{ fontSize: 12, color: S.textMuted }}>👤 Requested by: {trip.userName}</span>}
         </div>
+
+        {role === "driver" && (
+            <div style={{ background: "rgba(191,164,111,0.05)", padding: 10, borderRadius: 8, marginTop: 8, display: "flex", gap: 12, alignItems: "center" }}>
+                <Avatar initials={trip.userName.split(" ").map(n => n[0]).join("")} size={30} />
+                <div>
+                    <p style={{ margin: 0, fontSize: 12, color: S.gold, fontWeight: 600 }}>Requester Details</p>
+                    <p style={{ margin: 0, fontSize: 11, color: S.textMuted }}>{trip.userName}</p>
+                </div>
+            </div>
+        )}
         {(role === "admin") && trip.status === "pending" && (
             <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
                 <Btn variant="success" size="sm" onClick={() => onAction(trip, "approve")} style={{ flex: 1, justifyContent: "center" }}>✓ Schedule</Btn>
@@ -224,10 +237,115 @@ const TripCard = ({ trip, onAction, role }) => (
     </Card>
 );
 
+// ─── GLOBAL COMPONENTS ────────────────────────────────────────────────────────
+
+const Header = ({ currentUser, setView, setCurrentUser }) => (
+    <header className="glass-panel" style={{ padding: "16px 40px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 2000, borderLeft: "none", borderRight: "none", borderRadius: 0, borderTop: "none" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, cursor: "pointer" }} onClick={() => setView(currentUser ? "app" : "landing")}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: `0 4px 12px ${S.gold}44` }}>🚐</div>
+                <div>
+                    <div style={{ color: S.text, fontSize: 18, fontWeight: 800, letterSpacing: "0.02em", fontFamily: "var(--font-sans)" }}>EM GROUP</div>
+                    <div style={{ color: S.gold, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Transport Scheduler</div>
+                </div>
+            </div>
+
+            <nav style={{ display: "flex", gap: 32, marginLeft: 24, paddingLeft: 32, borderLeft: `1px solid var(--border)` }}>
+                <a href="#" onClick={(e) => { e.preventDefault(); setView(currentUser ? "app" : "landing"); setTab("home"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Home</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); setView(currentUser ? "app" : "login"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Book Transport</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); alert("Admin: admin@emgcompanies.co.za\nPhone: 072 611 3841\nAddress: Unit C41, Ifafi Business Center, 80 Die Ou Wapad St, Ifafi, Hartbeespoort, 0219"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Contact Us</a>
+            </nav>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {!currentUser ? (
+                <>
+                    <Btn variant="ghost" onClick={() => setView("login")}>Sign In</Btn>
+                    <Btn variant="gold" onClick={() => setView("register")}>Register</Btn>
+                </>
+            ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: S.text }}>{currentUser?.name.split(" ")[0]}</div>
+                        <div style={{ fontSize: 11, color: S.gold, textTransform: "capitalize", fontWeight: 600 }}>{currentUser?.role}</div>
+                    </div>
+                    <Avatar initials={currentUser.avatar} size={40} />
+                    <button onClick={() => { setCurrentUser(null); setView("landing"); }} style={{ background: "var(--surface-alt)", border: `1px solid var(--border)`, color: S.textMuted, borderRadius: 10, width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = S.danger} onMouseLeave={e => e.currentTarget.style.color = S.textMuted} title="Sign Out">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    </button>
+                </div>
+            )}
+        </div>
+    </header>
+);
+
+const Footer = () => (
+    <footer style={{ background: "var(--surface)", padding: "60px 40px", marginTop: "auto", borderTop: "1px solid var(--border)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 40 }}>
+            <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🚐</div>
+                    <div style={{ color: S.text, fontSize: 16, fontWeight: 900, letterSpacing: "0.02em", fontFamily: "var(--font-sans)" }}>EM GROUP</div>
+                </div>
+                <p style={{ color: S.textMuted, fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+                    Premium enterprise transportation and logistics solutions for modern operations.
+                </p>
+            </div>
+            <div>
+                <h4 style={{ color: S.text, fontSize: 14, fontWeight: 800, marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.1em" }}>Quick Links</h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <a href="#" style={{ color: S.textMuted, textDecoration: "none", fontSize: 14, transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.textMuted}>About Us</a>
+                    <a href="#" style={{ color: S.textMuted, textDecoration: "none", fontSize: 14, transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.textMuted}>Services</a>
+                    <a href="#" style={{ color: S.textMuted, textDecoration: "none", fontSize: 14, transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.textMuted}>Fleet</a>
+                </div>
+            </div>
+            <div>
+                <h4 style={{ color: S.text, fontSize: 14, fontWeight: 800, marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.1em" }}>Contact EM Group Companies</h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, color: S.textMuted, fontSize: 14 }}>
+                    <span>📍 Unit C41, Ifafi Business Center, 80 Die Ou Wapad St, Ifafi, Hartbeespoort, 0219</span>
+                    <span>📞 072 611 3841</span>
+                    <span>✉ admin@emgcompanies.co.za</span>
+                </div>
+            </div>
+        </div>
+        <div style={{ maxWidth: 1200, margin: "40px auto 0", paddingTop: 24, borderTop: `1px solid var(--border-light)`, color: S.textDim, fontSize: 13, textAlign: "center", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+            <span>&copy; {new Date().getFullYear()} Tumisho Enock Group Companies Pty Ltd. All rights reserved.</span>
+            <div style={{ display: "flex", gap: 24 }}>
+                <a href="#" style={{ color: S.textDim, textDecoration: "none", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.textDim}>Privacy Policy</a>
+                <a href="#" style={{ color: S.textDim, textDecoration: "none", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.textDim}>Terms of Service</a>
+            </div>
+        </div>
+    </footer>
+);
+
+const Landing = ({ setView }) => (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 20px", textAlign: "center", position: "relative" }}>
+        <div style={{ maxWidth: 800, position: "relative", zIndex: 10 }}>
+            <div style={{ display: "inline-block", padding: "8px 16px", background: "var(--surface-alt)", border: "1px solid var(--border)", borderRadius: 30, color: S.gold, fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 24 }}>
+                Enterprise Transport Scheduler
+            </div>
+            <h1 style={{ fontSize: "clamp(40px, 5vw, 64px)", fontWeight: 900, color: S.text, lineHeight: 1.1, marginBottom: 24, letterSpacing: "-0.02em" }}>
+                Seamless Corporate Mobility Solutions
+            </h1>
+            <p style={{ fontSize: "clamp(16px, 2vw, 20px)", color: S.textMuted, lineHeight: 1.6, marginBottom: 40, maxWidth: 640, margin: "0 auto 40px" }}>
+                Manage your enterprise fleet, schedule exclusive executive transit, and track operations directly from our unified portal.
+            </p>
+            <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+                <Btn size="lg" onClick={() => setView("login")} style={{ padding: "18px 36px", fontSize: 16 }}>Access Portal</Btn>
+                <Btn variant="outline" size="lg" onClick={() => setView("register")} style={{ padding: "18px 36px", fontSize: 16 }}>Request Access</Btn>
+            </div>
+        </div>
+
+        {/* Decorative elements */}
+        <div style={{ position: "absolute", top: "10%", left: "5%", width: 300, height: 300, background: "rgba(191,164,111,0.05)", borderRadius: "50%", filter: "blur(60px)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: "10%", right: "5%", width: 400, height: 400, background: "rgba(0,96,115,0.08)", borderRadius: "50%", filter: "blur(80px)", pointerEvents: "none" }} />
+    </div>
+);
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 const API_URL = '/api/api.php';
 export default function App() {
-    const [view, setView] = useState("login");          // login | register | app
+    const [view, setView] = useState("landing");          // landing | login | register | app
     const [tab, setTab] = useState("home");             // home | request | trips | fleet | users | dashboard
     const [currentUser, setCurrentUser] = useState(null);
     const [trips, setTrips] = useState([]);
@@ -240,8 +358,28 @@ export default function App() {
     const [tripForm, setTripForm] = useState({ pickup: "", destination: "", date: "", time: "", purpose: "", passengers: "1", notes: "" });
     const [scheduleForm, setScheduleForm] = useState({ driver: "", vehicle: "" });
     const [loginForm, setLoginForm] = useState({ email: "", password: "" });
-    const [regForm, setRegForm] = useState({ name: "", email: "", dept: "", role: "user", password: "", company: "" });
+    const OPERATIONS = {
+        "SA Region - Gold": ["Driefontein", "Kloof", "Beatrix", "Burnstone"],
+        "SA Region - PGM": ["Rustenburg", "Marikana", "Kroondal", "Platinum Mile"],
+        "US Region - PGM": ["Stillwater", "East Boulder", "Columbus Metallurgical Complex"],
+        "Europe Region": ["Keliber", "Sandouville"],
+        "Other": ["Corporate", "Head Office", "Other"]
+    };
+
+    const [regForm, setRegForm] = useState({
+        firstName: "", surname: "", cellphone: "", zNumber: "",
+        workEmailPrefix: "", workEmailDomain: "@sibanyestillwater.com", personalEmail: "",
+        operation: "", subOperation: "", dept: "", role: "user", password: "",
+        picture: "", licenseExpiry: "", prdpExpiry: "", licensePicture: ""
+    });
     const [chartPeriod, setChartPeriod] = useState("weekly");
+    const [userSearch, setUserSearch] = useState("");
+    const [userRoleFilter, setUserRoleFilter] = useState("all");
+    const [vehicleSearch, setVehicleSearch] = useState("");
+    const [dashDateRange, setDashDateRange] = useState({ start: "", end: "" });
+
+    const [vehicleForm, setVehicleForm] = useState({ id: "", name: "", plate: "", type: "", capacity: "", trips: 0, status: "available", lastService: "", assetNumber: "", homeOperation: "", odometer: "", color: "", licenseDiskExpiry: "", maintenanceInterval: "", picture: "" });
+    const [driverForm, setDriverForm] = useState({ id: "", name: "", surname: "", zNumber: "", email: "", operation: "", license: "", vehicle: "", trips: 0, status: "available", phone: "", picture: "", licenseExpiry: "", prdpExpiry: "" });
 
     useEffect(() => {
         // Mock Data Initialization
@@ -258,7 +396,8 @@ export default function App() {
 
     const handleLogin = async () => {
         // Mock Login
-        const user = users.find(u => u.email === loginForm.email);
+        let user = users.find(u => u.email === loginForm.email);
+
         if (user && loginForm.password === "demo") { // simple mock auth
             if (user.status === "pending") return showToast("Your account is awaiting admin approval", "info");
             setCurrentUser(user);
@@ -271,17 +410,30 @@ export default function App() {
     };
 
     const handleRegister = async () => {
-        if (!regForm.name || !regForm.email || !regForm.dept) return showToast("Please fill all required fields", "error");
+        if (!regForm.firstName || !regForm.surname || !regForm.workEmailPrefix || !regForm.dept || !regForm.operation || !regForm.subOperation) {
+            return showToast("Please fill all required fields", "error");
+        }
+
+        const fullWorkEmail = `${regForm.workEmailPrefix}${regForm.workEmailDomain}`;
 
         // Mock Registration
         const newUser = {
             id: users.length + 1,
-            name: regForm.name,
-            email: regForm.email,
+            name: `${regForm.firstName} ${regForm.surname}`,
+            email: fullWorkEmail,
+            personalEmail: regForm.personalEmail,
+            cellphone: regForm.cellphone,
+            zNumber: regForm.zNumber,
+            operation: regForm.operation,
+            subOperation: regForm.subOperation,
             role: regForm.role,
             status: "pending",
             dept: regForm.dept,
-            avatar: regForm.name.split(" ").map(n => n[0]).join("")
+            avatar: (regForm.firstName[0] || "") + (regForm.surname[0] || ""),
+            picture: regForm.picture,
+            licenseExpiry: regForm.licenseExpiry,
+            prdpExpiry: regForm.prdpExpiry,
+            licensePicture: regForm.licensePicture
         };
         setUsers(prev => [...prev, newUser]);
 
@@ -326,13 +478,50 @@ export default function App() {
         showToast("Trip declined and user notified", "info");
     };
 
+    const handleSaveVehicle = async () => {
+        if (!vehicleForm.name || !vehicleForm.plate || !vehicleForm.type) return showToast("Please fill all required fields", "error");
+        if (vehicleForm.id) {
+            setVehicles(prev => prev.map(v => v.id === vehicleForm.id ? vehicleForm : v));
+            showToast("Vehicle updated successfully", "success");
+        } else {
+            setVehicles(prev => [...prev, { ...vehicleForm, id: `V00${prev.length + 1}` }]);
+            showToast("Vehicle added successfully", "success");
+        }
+        setModal({ open: false });
+    };
+
+    const handleSaveDriver = async () => {
+        if (!driverForm.name || !driverForm.surname || !driverForm.zNumber) return showToast("Please fill all required fields", "error");
+        if (driverForm.id) {
+            setDrivers(prev => prev.map(d => d.id === driverForm.id ? driverForm : d));
+            showToast("Driver updated successfully", "success");
+        } else {
+            setDrivers(prev => [...prev, { ...driverForm, id: prev.length + 1, name: `${driverForm.name} ${driverForm.surname}` }]);
+            showToast("Driver added successfully", "success");
+        }
+        setModal({ open: false });
+    };
+
     const handleApproveUser = async (userId) => {
         // Mock approve user
+        const user = users.find(u => u.id === userId);
+        if (user && user.role === "driver") {
+            setDrivers(prev => [...prev, {
+                id: prev.length + 1, name: user.name, surname: user.name.split(" ")[1] || "",
+                zNumber: user.zNumber, email: user.email, operation: user.operation,
+                license: "PrDP", vehicle: "", trips: 0, status: "available", phone: user.cellphone, picture: user.picture
+            }]);
+        }
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: "active" } : u));
         showToast("User approved and notified ✓", "success");
     };
 
-    const myTrips = trips.filter(t => t.userId === currentUser?.id);
+    const handleToggleUserStatus = (userId) => {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: u.status === "active" ? "inactive" : "active" } : u));
+        showToast("User status updated", "success");
+    };
+
+    const myTrips = trips.filter(t => currentUser?.role === "driver" ? t.driver === currentUser.name : t.userId === currentUser?.id);
     const pendingTrips = trips.filter(t => t.status === "pending");
     const totalCompleted = trips.filter(t => t.status === "completed").length;
 
@@ -346,9 +535,8 @@ export default function App() {
     const PURPOSES = ["Site Inspection", "Safety Training", "HR Audit", "Equipment Delivery", "Management Meeting", "Medical Evacuation", "Client Visit", "Supplier Meeting", "Emergency Response", "Other"];
 
     // ─── RENDER: LOGIN ────────────────────────────────────────────────────────────
-    if (view === "login") return (
-        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
-            <Toast {...toast} />
+    const renderLogin = () => (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
             <div style={{ width: "100%", maxWidth: 460, animation: "slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
                 {/* Logo */}
                 <div style={{ textAlign: "center", marginBottom: 36 }}>
@@ -368,8 +556,8 @@ export default function App() {
 
                     <div style={{ marginTop: 16, padding: 14, background: S.surfaceAlt, borderRadius: 10, border: `1px solid ${S.border}` }}>
                         <p style={{ margin: "0 0 8px", color: S.textMuted, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Quick Demo Logins</p>
-                        {[["admin@demo", "Admin (Transport Admin)", "admin"], ["mgmt@demo", "Enock Sithole (Manager)", "management"], ["user@demo", "Sarah Dlamini (User)", "user"]].map(([hint, name, role]) => (
-                            <div key={role} onClick={() => { setLoginForm({ email: users.find(u => u.role === role)?.email || "", password: "demo" }); }} style={{ cursor: "pointer", padding: "10px 8px", borderBottom: `1px solid var(--border-light)`, display: "flex", justifyContent: "space-between", alignItems: "center", transition: "background 0.2s", borderRadius: 6 }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.02)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                        {[["admin@demo", "Admin (Transport Admin)", "admin"], ["mgmt@demo", "Enock Sithole (Manager)", "management"], ["user@demo", "Sarah Dlamini (User)", "user"], ["driver@demo", "Sipho Mahlangu (Driver)", "driver"]].map(([hint, name, role]) => (
+                            <div key={role} onClick={() => { setLoginForm({ email: role === "driver" ? "driver@demo" : (users.find(u => u.role === role)?.email || ""), password: "demo" }); }} style={{ cursor: "pointer", padding: "10px 8px", borderBottom: `1px solid var(--border-light)`, display: "flex", justifyContent: "space-between", alignItems: "center", transition: "background 0.2s", borderRadius: 6 }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.02)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                                 <span style={{ color: S.text, fontSize: 13, fontWeight: 500 }}>{name}</span>
                                 <Badge status={role === "admin" ? "active" : role === "management" ? "in-review" : "approved"} />
                             </div>
@@ -390,9 +578,8 @@ export default function App() {
     );
 
     // ─── RENDER: REGISTER ─────────────────────────────────────────────────────────
-    if (view === "register") return (
-        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px" }}>
-            <Toast {...toast} />
+    const renderRegister = () => (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px" }}>
             <div style={{ width: "100%", maxWidth: 520, animation: "slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}>
                 <button onClick={() => setView("login")} style={{ background: "none", border: "none", color: S.gold, cursor: "pointer", fontSize: 14, fontWeight: 600, marginBottom: 24, padding: 0, display: "flex", alignItems: "center", gap: 6, transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.goldLight} onMouseLeave={e => e.target.style.color = S.gold}>← Back to Login</button>
                 <div style={{ textAlign: "center", marginBottom: 28 }}>
@@ -401,11 +588,68 @@ export default function App() {
                 </div>
                 <Card className="glass-panel" style={{ padding: 32 }}>
                     <h2 style={{ margin: "0 0 24px", color: S.text, fontSize: 24, fontWeight: 700, fontFamily: "var(--font-sans)" }}>New User Registration</h2>
-                    <Input label="Full Name" value={regForm.name} onChange={v => setRegForm(p => ({ ...p, name: v }))} placeholder="e.g. Sipho Nkosi" required />
-                    <Input label="Work Email" value={regForm.email} onChange={v => setRegForm(p => ({ ...p, email: v }))} type="email" placeholder="sipho@sibanye.com" required />
-                    <Input label="Company / Department" value={regForm.dept} onChange={v => setRegForm(p => ({ ...p, dept: v }))} placeholder="e.g. Safety & Health" required />
-                    <Input label="Role Requested" value={regForm.role} onChange={v => setRegForm(p => ({ ...p, role: v }))} options={[{ value: "user", label: "Standard User" }, { value: "management", label: "Management (requires approval)" }]} required />
-                    <Input label="Password" value={regForm.password} onChange={v => setRegForm(p => ({ ...p, password: v }))} type="password" placeholder="Create a password" required />
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                        <Input label="First Name" value={regForm.firstName} onChange={v => setRegForm(p => ({ ...p, firstName: v }))} placeholder="Sipho" required />
+                        <Input label="Surname" value={regForm.surname} onChange={v => setRegForm(p => ({ ...p, surname: v }))} placeholder="Nkosi" required />
+                        <Input label="Cellphone Number" value={regForm.cellphone} onChange={v => setRegForm(p => ({ ...p, cellphone: v }))} placeholder="082 123 4567" required />
+                        <Input label="Z-Number" value={regForm.zNumber} onChange={v => setRegForm(p => ({ ...p, zNumber: v }))} placeholder="Z123456" required />
+                    </div>
+
+                    <div style={{ marginBottom: 20 }}>
+                        <label style={{ display: "block", color: S.textMuted, fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>Work Email <span style={{ color: S.gold }}>*</span></label>
+                        <div style={{ display: "flex" }}>
+                            <input type="text" value={regForm.workEmailPrefix} onChange={e => setRegForm(p => ({ ...p, workEmailPrefix: e.target.value }))} placeholder="sipho.nkosi" style={{ flex: 1, background: "var(--surface-alt)", border: `1px solid var(--border)`, borderRight: "none", borderRadius: "12px 0 0 12px", padding: "14px 16px", color: S.text, outline: "none" }} />
+                            <select value={regForm.workEmailDomain} onChange={e => setRegForm(p => ({ ...p, workEmailDomain: e.target.value }))} style={{ background: "var(--surface)", border: `1px solid var(--border)`, borderRadius: "0 12px 12px 0", padding: "14px 16px", color: S.textMuted, outline: "none" }}>
+                                <option value="@sibanyestillwater.com">@sibanyestillwater.com</option>
+                                <option value="@sibanyestillwater.co.za">@sibanyestillwater.co.za</option>
+                                <option value="@emgcompanies.co.za">@emgcompanies.co.za</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <Input label="Personal Email" value={regForm.personalEmail} onChange={v => setRegForm(p => ({ ...p, personalEmail: v }))} type="email" placeholder="sipho.personal@gmail.com" />
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                        <Input label="Main Operation" value={regForm.operation} onChange={v => setRegForm(p => ({ ...p, operation: v, subOperation: "" }))} options={Object.keys(OPERATIONS)} required />
+                        <Input label="Sub Operation" value={regForm.subOperation} onChange={v => setRegForm(p => ({ ...p, subOperation: v }))} options={regForm.operation ? OPERATIONS[regForm.operation] : []} required />
+                    </div>
+
+                    <Input label="Department" value={regForm.dept} onChange={v => setRegForm(p => ({ ...p, dept: v }))} placeholder="e.g. Safety & Health" required />
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                        <Input label="Role Requested" value={regForm.role} onChange={v => setRegForm(p => ({ ...p, role: v }))} options={[{ value: "user", label: "Standard User" }, { value: "driver", label: "Driver" }, { value: "management", label: "Management (requires approval)" }]} required />
+                        <Input label="Password" value={regForm.password} onChange={v => setRegForm(p => ({ ...p, password: v }))} type="password" placeholder="Create a password" required />
+                    </div>
+
+                    {/* Driver Specific Fields */}
+                    {regForm.role === "driver" && (
+                        <div style={{ background: "rgba(212, 160, 23, 0.05)", border: `1px solid ${S.gold}33`, borderRadius: 14, padding: 16, marginBottom: 20 }}>
+                            <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Driver Requirements</h3>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                                <Input label="License Expiry Date" value={regForm.licenseExpiry} onChange={v => setRegForm(p => ({ ...p, licenseExpiry: v }))} type="date" required />
+                                <Input label="PrDP Expiry Date" value={regForm.prdpExpiry} onChange={v => setRegForm(p => ({ ...p, prdpExpiry: v }))} type="date" required />
+                            </div>
+                            <div style={{ textAlign: "left", marginTop: 8 }}>
+                                <label style={{ display: "block", color: S.textMuted, fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>Upload License Picture (Required)</label>
+                                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                                    <Btn variant="outline" size="sm" onClick={() => showToast("License picture selected (mock upload)", "info")}>Browse File...</Btn>
+                                    <span style={{ fontSize: 12, color: S.textDim }}>Max 5MB (JPG/PNG)</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Mock Profile Picture Upload */}
+                    <div style={{ marginBottom: 24, textAlign: "left" }}>
+                        <label style={{ display: "block", color: S.textMuted, fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>Profile Picture (Optional)</label>
+                        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                            <Avatar initials={regForm.firstName ? regForm.firstName[0] : "?"} size={50} />
+                            <Btn variant="outline" size="sm" onClick={() => showToast("Picture selected (mock upload)", "info")}>Browse File...</Btn>
+                            <span style={{ fontSize: 12, color: S.textDim }}>Max 2MB (JPG/PNG)</span>
+                        </div>
+                    </div>
+
                     <div style={{ background: `${S.gold}11`, border: `1px solid ${S.gold}33`, borderRadius: 10, padding: 12, marginBottom: 16 }}>
                         <p style={{ margin: 0, color: S.gold, fontSize: 12, fontWeight: 600 }}>⚠ Your account will be reviewed by an administrator before activation. You'll receive an email notification once approved.</p>
                     </div>
@@ -417,8 +661,9 @@ export default function App() {
 
     // ─── RENDER: MAIN APP ─────────────────────────────────────────────────────────
     const TABS = {
-        user: [{ id: "home", icon: "🏠", label: "Home" }, { id: "request", icon: "➕", label: "New Trip" }, { id: "trips", icon: "📋", label: "My Trips" }],
-        admin: [{ id: "home", icon: "🏠", label: "Home" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }],
+        user: [{ id: "home", icon: "🏠", label: "Home" }, { id: "request", icon: "➕", label: "New Trip" }, { id: "trips", icon: "📋", label: "My Trips" }, { id: "dashboard", icon: "📊", label: "Dashboard" }],
+        driver: [{ id: "home", icon: "🏠", label: "Home" }, { id: "trips", icon: "📋", label: "Allocated Trips" }, { id: "dashboard", icon: "📊", label: "Dashboard" }],
+        admin: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }],
         management: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }],
     };
 
@@ -428,397 +673,508 @@ export default function App() {
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
             <Toast {...toast} />
 
-            {/* Header */}
-            <header className="glass-panel" style={{ padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100, borderLeft: "none", borderRight: "none", borderRadius: 0, borderTop: "none" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: `0 4px 12px ${S.gold}44` }}>🚐</div>
-                    <div>
-                        <div style={{ color: S.text, fontSize: 18, fontWeight: 800, letterSpacing: "0.02em", fontFamily: "var(--font-sans)" }}>EM GROUP</div>
-                        <div style={{ color: S.gold, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Transport Scheduler</div>
-                    </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    {currentUser?.role === "admin" && pendingTrips.length > 0 && (
-                        <div style={{ background: "var(--danger-bg)", color: "var(--danger)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600 }}>{pendingTrips.length} pending</div>
-                    )}
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, paddingLeft: 16, borderLeft: `1px solid var(--border)` }}>
-                        <div style={{ textAlign: "right", display: "none" }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: S.text }}>{currentUser?.name.split(" ")[0]}</div>
-                            <div style={{ fontSize: 11, color: S.textMuted, textTransform: "capitalize" }}>{currentUser?.role}</div>
+            <Header currentUser={currentUser} setView={setView} setCurrentUser={setCurrentUser} />
+
+            {view === "landing" && <Landing setView={setView} />}
+            {view === "login" && renderLogin()}
+            {view === "register" && renderRegister()}
+
+            {view === "app" && (
+                <div style={{ display: "flex", flex: 1, position: "relative" }}>
+
+                    {/* Desktop Sidebar (hidden on mobile via CSS wrapper if we had one, handling inline for now) */}
+                    <aside className="glass-panel" style={{ width: 260, padding: "32px 16px", display: "flex", flexDirection: "column", gap: 8, borderTop: "none", borderLeft: "none", borderBottom: "none", borderRadius: 0, position: "sticky", top: 73, height: "calc(100vh - 73px)" }}>
+                        <div style={{ marginBottom: 24, padding: "0 12px" }}>
+                            <p style={{ margin: 0, color: S.textMuted, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Application Menu</p>
                         </div>
-                        <Avatar initials={currentUser?.avatar} size={40} />
-                        <button onClick={() => { setCurrentUser(null); setView("login"); }} style={{ background: "var(--surface-alt)", border: `1px solid var(--border)`, color: S.textMuted, borderRadius: 10, width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = S.danger} onMouseLeave={e => e.currentTarget.style.color = S.textMuted} title="Sign Out">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                        </button>
-                    </div>
-                </div>
-            </header>
+                        {navTabs.map(t => (
+                            <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "12px 16px", background: tab === t.id ? "rgba(212, 160, 23, 0.1)" : "transparent", border: "none", borderRadius: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s", color: tab === t.id ? S.gold : S.textMuted, textAlign: "left" }} onMouseEnter={e => { if (tab !== t.id) e.currentTarget.style.background = "var(--surface-alt)"; e.currentTarget.style.color = S.text; }} onMouseLeave={e => { if (tab !== t.id) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = S.textMuted; } else { e.currentTarget.style.color = S.gold; } }}>
+                                <span style={{ fontSize: 20 }}>{t.icon}</span>
+                                <span style={{ fontSize: 15, fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
+                                {t.id === "trips" && currentUser?.role === "admin" && pendingTrips.length > 0 && (
+                                    <span style={{ marginLeft: "auto", background: S.danger, width: 8, height: 8, borderRadius: "50%" }} />
+                                )}
+                            </button>
+                        ))}
+                    </aside>
 
-            {/* Main Layout Container */}
-            <div style={{ display: "flex", flex: 1, position: "relative" }}>
-
-                {/* Desktop Sidebar (hidden on mobile via CSS wrapper if we had one, handling inline for now) */}
-                <aside className="glass-panel" style={{ width: 260, padding: "32px 16px", display: "flex", flexDirection: "column", gap: 8, borderTop: "none", borderLeft: "none", borderBottom: "none", borderRadius: 0, position: "sticky", top: 73, height: "calc(100vh - 73px)" }}>
-                    <div style={{ marginBottom: 24, padding: "0 12px" }}>
-                        <p style={{ margin: 0, color: S.textMuted, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Application Menu</p>
-                    </div>
-                    {navTabs.map(t => (
-                        <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "12px 16px", background: tab === t.id ? "rgba(212, 160, 23, 0.1)" : "transparent", border: "none", borderRadius: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s", color: tab === t.id ? S.gold : S.textMuted, textAlign: "left" }} onMouseEnter={e => { if (tab !== t.id) e.currentTarget.style.background = "var(--surface-alt)"; e.currentTarget.style.color = S.text; }} onMouseLeave={e => { if (tab !== t.id) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = S.textMuted; } else { e.currentTarget.style.color = S.gold; } }}>
-                            <span style={{ fontSize: 20 }}>{t.icon}</span>
-                            <span style={{ fontSize: 15, fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
-                            {t.id === "trips" && currentUser?.role === "admin" && pendingTrips.length > 0 && (
-                                <span style={{ marginLeft: "auto", background: S.danger, width: 8, height: 8, borderRadius: "50%" }} />
-                            )}
-                        </button>
-                    ))}
-                </aside>
-
-                {/* Main Content Area */}
-                <main style={{ flex: 1, padding: "32px 40px", maxWidth: 1200, margin: "0 auto", width: "100%", animation: "fadeIn 0.4s ease-out" }}>
-                    <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } @media (max-width: 768px) { aside { display: none !important; } main { padding: 20px 16px 100px !important; } .mobile-nav { display: flex !important; } .grid-desktop { grid-template-columns: 1fr !important; } } .mobile-nav { display: none; } .grid-desktop { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }`}</style>
+                    {/* Main Content Area */}
+                    <main style={{ flex: 1, padding: "32px 40px", maxWidth: 1200, margin: "0 auto", width: "100%", animation: "fadeIn 0.4s ease-out" }}>
+                        <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } @media (max-width: 768px) { aside { display: none !important; } main { padding: 20px 16px 100px !important; } .mobile-nav { display: flex !important; } .grid-desktop { grid-template-columns: 1fr !important; } } .mobile-nav { display: none; } .grid-desktop { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }`}</style>
 
 
-                    {/* ── HOME TAB ── */}
-                    {tab === "home" && (
-                        <div>
-                            <div style={{ marginBottom: 20 }}>
-                                <p style={{ margin: "0 0 2px", color: S.textMuted, fontSize: 13 }}>Good day,</p>
-                                <h1 style={{ margin: 0, color: S.text, fontSize: 22, fontWeight: 900 }}>{currentUser?.name?.split(" ")[0]} 👋</h1>
-                                <p style={{ margin: "4px 0 0", color: S.textDim, fontSize: 12 }}>{currentUser?.dept} • <span style={{ color: S.gold, fontWeight: 700, textTransform: "capitalize" }}>{currentUser?.role}</span></p>
-                            </div>
+                        {/* ── HOME TAB ── */}
+                        {tab === "home" && (
+                            <div>
+                                <div style={{ marginBottom: 20 }}>
+                                    <p style={{ margin: "0 0 2px", color: S.textMuted, fontSize: 13 }}>Good day,</p>
+                                    <h1 style={{ margin: 0, color: S.text, fontSize: 22, fontWeight: 900 }}>{currentUser?.name?.split(" ")[0]} 👋</h1>
+                                    <p style={{ margin: "4px 0 0", color: S.textDim, fontSize: 12 }}>{currentUser?.dept} • <span style={{ color: S.gold, fontWeight: 700, textTransform: "capitalize" }}>{currentUser?.role}</span></p>
+                                </div>
 
-                            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                                <StatCard label="My Trips" value={myTrips.length} icon="🧳" color={S.gold} sub={`${myTrips.filter(t => t.status === "completed").length} completed`} />
-                                <StatCard label={currentUser?.role === "admin" ? "Pending" : "Approved"} value={currentUser?.role === "admin" ? pendingTrips.length : myTrips.filter(t => t.status === "approved").length} icon={currentUser?.role === "admin" ? "⏳" : "✅"} color={currentUser?.role === "admin" && pendingTrips.length > 0 ? S.danger : S.success} />
-                            </div>
+                                <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                                    <StatCard label="My Trips" value={myTrips.length} icon="🧳" color={S.gold} sub={`${myTrips.filter(t => t.status === "completed").length} completed`} />
+                                    <StatCard label={currentUser?.role === "admin" ? "Pending" : "Approved"} value={currentUser?.role === "admin" ? pendingTrips.length : myTrips.filter(t => t.status === "approved").length} icon={currentUser?.role === "admin" ? "⏳" : "✅"} color={currentUser?.role === "admin" && pendingTrips.length > 0 ? S.danger : S.success} />
+                                </div>
 
-                            {currentUser?.role === "user" && (
-                                <Card style={{ marginBottom: 16, cursor: "pointer" }} onClick={() => setTab("request")}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                                        <div style={{ width: 52, height: 52, borderRadius: 16, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🚐</div>
-                                        <div style={{ flex: 1 }}>
-                                            <p style={{ margin: 0, color: S.text, fontWeight: 800, fontSize: 16 }}>Request a Trip</p>
-                                            <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>Schedule transport to/from any Sibanye site</p>
+                                {currentUser?.role === "user" && (
+                                    <Card style={{ marginBottom: 16, cursor: "pointer" }} onClick={() => setTab("request")}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                                            <div style={{ width: 52, height: 52, borderRadius: 16, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🚐</div>
+                                            <div style={{ flex: 1 }}>
+                                                <p style={{ margin: 0, color: S.text, fontWeight: 800, fontSize: 16 }}>Request a Trip</p>
+                                                <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>Schedule transport to/from any Sibanye site</p>
+                                            </div>
+                                            <span style={{ color: S.gold, fontSize: 20 }}>›</span>
                                         </div>
-                                        <span style={{ color: S.gold, fontSize: 20 }}>›</span>
+                                    </Card>
+                                )}
+
+                                {currentUser?.role === "admin" && pendingTrips.length > 0 && (
+                                    <div style={{ marginBottom: 16 }}>
+                                        <h3 style={{ margin: "0 0 10px", color: S.text, fontSize: 14, fontWeight: 700 }}>🔔 Pending Approval</h3>
+                                        {pendingTrips.slice(0, 2).map(t => (
+                                            <TripCard key={t.id} trip={t} role="admin" onAction={(trip, action) => {
+                                                if (action === "approve") { setModal({ open: true, type: "schedule", data: trip }); }
+                                                else { handleRejectTrip(trip); }
+                                            }} />
+                                        ))}
                                     </div>
-                                </Card>
-                            )}
+                                )}
 
-                            {currentUser?.role === "admin" && pendingTrips.length > 0 && (
-                                <div style={{ marginBottom: 16 }}>
-                                    <h3 style={{ margin: "0 0 10px", color: S.text, fontSize: 14, fontWeight: 700 }}>🔔 Pending Approval</h3>
-                                    {pendingTrips.slice(0, 2).map(t => (
-                                        <TripCard key={t.id} trip={t} role="admin" onAction={(trip, action) => {
-                                            if (action === "approve") { setModal({ open: true, type: "schedule", data: trip }); }
-                                            else { handleRejectTrip(trip); }
-                                        }} />
-                                    ))}
-                                </div>
-                            )}
-
-                            {currentUser?.role === "management" && (
-                                <div style={{ marginBottom: 16 }}>
-                                    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-                                        <StatCard label="Total Trips" value={trips.length} icon="🗺️" color={S.blueLight} />
-                                        <StatCard label="Drivers Active" value={drivers.filter(d => d.status !== "off_duty").length} icon="👤" color={S.gold} />
+                                {currentUser?.role === "management" && (
+                                    <div style={{ marginBottom: 16 }}>
+                                        <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                                            <StatCard label="Total Trips" value={trips.length} icon="🗺️" color={S.blueLight} />
+                                            <StatCard label="Drivers Active" value={drivers.filter(d => d.status !== "off_duty").length} icon="👤" color={S.gold} />
+                                        </div>
+                                        <Btn onClick={() => setTab("dashboard")} style={{ width: "100%", justifyContent: "center" }}>View Full Dashboard →</Btn>
                                     </div>
-                                    <Btn onClick={() => setTab("dashboard")} style={{ width: "100%", justifyContent: "center" }}>View Full Dashboard →</Btn>
-                                </div>
-                            )}
+                                )}
 
-                            {/* Recent trips */}
-                            <h3 style={{ margin: "0 0 10px", color: S.text, fontSize: 14, fontWeight: 700 }}>
-                                {currentUser?.role === "admin" ? "📋 Recent Requests" : "📋 Recent Trips"}
-                            </h3>
-                            {(currentUser?.role === "admin" ? trips : myTrips).slice(-3).reverse().map(t => (
-                                <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
-                                    if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
-                                    else handleRejectTrip(trip);
-                                }} />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* ── REQUEST TRIP TAB ── */}
-                    {tab === "request" && currentUser?.role === "user" && (
-                        <div>
-                            <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>New Trip Request</h2>
-                            <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Fill in your trip details below</p>
-
-                            {/* Progress */}
-                            <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
-                                {[1, 2, 3].map(s => (
-                                    <div key={s} style={{ flex: 1, height: 4, borderRadius: 4, background: s <= requestStep ? S.gold : S.border, transition: "background 0.3s" }} />
+                                {/* Recent trips */}
+                                <h3 style={{ margin: "0 0 10px", color: S.text, fontSize: 14, fontWeight: 700 }}>
+                                    {currentUser?.role === "admin" ? "📋 Recent Requests" : "📋 Recent Trips"}
+                                </h3>
+                                {(currentUser?.role === "admin" ? trips : myTrips).slice(-3).reverse().map(t => (
+                                    <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
+                                        if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
+                                        else handleRejectTrip(trip);
+                                    }} />
                                 ))}
                             </div>
+                        )}
 
-                            {requestStep === 1 && (
-                                <Card>
-                                    <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 1: Locations</h3>
-                                    <div style={{ background: S.surfaceAlt, borderRadius: 14, padding: 14, marginBottom: 14, position: "relative" }}>
-                                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                                            <div>
-                                                <p style={{ margin: "0 0 4px", color: S.gold, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>📍 Pickup Location</p>
-                                                <select value={tripForm.pickup} onChange={e => setTripForm(p => ({ ...p, pickup: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: tripForm.pickup ? S.text : S.textMuted, fontSize: 14, fontFamily: "inherit", outline: "none", padding: "4px 0" }}>
-                                                    <option value="">Select pickup location...</option>
-                                                    {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-                                                </select>
-                                            </div>
-                                            <div style={{ height: 1, background: S.border }} />
-                                            <div>
-                                                <p style={{ margin: "0 0 4px", color: S.success, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>🏁 Destination</p>
-                                                <select value={tripForm.destination} onChange={e => setTripForm(p => ({ ...p, destination: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: tripForm.destination ? S.text : S.textMuted, fontSize: 14, fontFamily: "inherit", outline: "none", padding: "4px 0" }}>
-                                                    <option value="">Select destination...</option>
-                                                    {LOCATIONS.filter(l => l !== tripForm.pickup).map(l => <option key={l} value={l}>{l}</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <Btn onClick={() => { if (!tripForm.pickup || !tripForm.destination) return showToast("Select both locations", "error"); setRequestStep(2); }} style={{ width: "100%", justifyContent: "center" }} size="lg">Continue →</Btn>
-                                </Card>
-                            )}
-
-                            {requestStep === 2 && (
-                                <Card>
-                                    <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 2: Date & Details</h3>
-                                    <div style={{ display: "flex", gap: 10 }}>
-                                        <div style={{ flex: 1 }}><Input label="Date" value={tripForm.date} onChange={v => setTripForm(p => ({ ...p, date: v }))} type="date" required min={new Date().toISOString().split("T")[0]} /></div>
-                                        <div style={{ flex: 1 }}><Input label="Time" value={tripForm.time} onChange={v => setTripForm(p => ({ ...p, time: v }))} type="time" required /></div>
-                                    </div>
-                                    <Input label="Purpose of Trip" value={tripForm.purpose} onChange={v => setTripForm(p => ({ ...p, purpose: v }))} options={PURPOSES.map(p => ({ value: p, label: p }))} required />
-                                    <Input label="Number of Passengers" value={tripForm.passengers} onChange={v => setTripForm(p => ({ ...p, passengers: v }))} type="number" min="1" />
-                                    <Input label="Additional Notes (optional)" value={tripForm.notes} onChange={v => setTripForm(p => ({ ...p, notes: v }))} placeholder="Any special requirements..." />
-                                    <div style={{ display: "flex", gap: 10 }}>
-                                        <Btn variant="outline" onClick={() => setRequestStep(1)} style={{ flex: 1, justifyContent: "center" }}>← Back</Btn>
-                                        <Btn onClick={() => { if (!tripForm.date || !tripForm.time || !tripForm.purpose) return showToast("Fill all required fields", "error"); setRequestStep(3); }} style={{ flex: 2, justifyContent: "center" }}>Review →</Btn>
-                                    </div>
-                                </Card>
-                            )}
-
-                            {requestStep === 3 && (
-                                <Card>
-                                    <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 3: Confirm Request</h3>
-                                    {[["📍 From", tripForm.pickup], ["🏁 To", tripForm.destination], ["📅 Date", `${tripForm.date} at ${tripForm.time}`], ["🎯 Purpose", tripForm.purpose], ["👥 Passengers", tripForm.passengers]].map(([label, val]) => (
-                                        <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${S.border}` }}>
-                                            <span style={{ color: S.textMuted, fontSize: 13 }}>{label}</span>
-                                            <span style={{ color: S.text, fontSize: 13, fontWeight: 700, maxWidth: "55%", textAlign: "right" }}>{val}</span>
-                                        </div>
-                                    ))}
-                                    <div style={{ marginTop: 14, padding: 12, background: `${S.blue}18`, border: `1px solid ${S.blue}33`, borderRadius: 10 }}>
-                                        <p style={{ margin: 0, color: "#7DBFFF", fontSize: 12 }}>📆 Upon approval, your Microsoft Teams calendar and the transport department calendar will be automatically updated.</p>
-                                    </div>
-                                    <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                                        <Btn variant="outline" onClick={() => setRequestStep(2)} style={{ flex: 1, justifyContent: "center" }}>← Edit</Btn>
-                                        <Btn onClick={handleRequestTrip} style={{ flex: 2, justifyContent: "center" }} size="lg">✓ Submit Request</Btn>
-                                    </div>
-                                </Card>
-                            )}
-                        </div>
-                    )}
-
-                    {/* ── TRIPS TAB ── */}
-                    {tab === "trips" && (
-                        <div>
-                            <h2 style={{ margin: "0 0 16px", color: S.text, fontSize: 20, fontWeight: 900 }}>
-                                {currentUser?.role === "admin" ? "All Trip Requests" : "My Trips"}
-                            </h2>
-                            {(currentUser?.role === "admin" ? trips : myTrips).slice().reverse().map(t => (
-                                <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
-                                    if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
-                                    else handleRejectTrip(trip);
-                                }} />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* ── FLEET TAB ── */}
-                    {tab === "fleet" && (
-                        <div>
-                            <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Fleet Management</h2>
-                            <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Vehicles & Drivers</p>
-
-                            <h3 style={{ margin: "0 0 10px", color: S.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>🚐 Vehicles ({vehicles.length})</h3>
-                            {vehicles.map(v => (
-                                <Card key={v.id} style={{ marginBottom: 10 }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                                        <div>
-                                            <p style={{ margin: 0, color: S.text, fontWeight: 800, fontSize: 15 }}>{v.name}</p>
-                                            <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>{v.plate} • {v.type} • Cap: {v.capacity}</p>
-                                            <p style={{ margin: "4px 0 0", color: S.textDim, fontSize: 11 }}>Last service: {v.lastService}</p>
-                                        </div>
-                                        <div style={{ textAlign: "right" }}>
-                                            <Badge status={v.status} />
-                                            <p style={{ margin: "6px 0 0", color: S.gold, fontSize: 13, fontWeight: 700 }}>{v.trips} trips</p>
-                                        </div>
-                                    </div>
-                                </Card>
-                            ))}
-
-                            <h3 style={{ margin: "16px 0 10px", color: S.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>👤 Drivers ({drivers.length})</h3>
-                            {drivers.map(d => (
-                                <Card key={d.id} style={{ marginBottom: 10 }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                                            <Avatar initials={d.name.split(" ").map(n => n[0]).join("")} size={40} color={S.blueLight} />
-                                            <div>
-                                                <p style={{ margin: 0, color: S.text, fontWeight: 700, fontSize: 14 }}>{d.name}</p>
-                                                <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>{d.phone} • {d.license}</p>
-                                            </div>
-                                        </div>
-                                        <div style={{ textAlign: "right" }}>
-                                            <Badge status={d.status} />
-                                            <p style={{ margin: "4px 0 0", color: S.gold, fontSize: 13, fontWeight: 700 }}>{d.trips} trips</p>
-                                        </div>
-                                    </div>
-                                </Card>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* ── USERS TAB (admin) ── */}
-                    {
-                        tab === "users" && currentUser?.role === "admin" && (
+                        {/* ── REQUEST TRIP TAB ── */}
+                        {tab === "request" && currentUser?.role === "user" && (
                             <div>
-                                <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>User Management</h2>
-                                <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Manage platform access & roles</p>
-                                {users.map(u => (
-                                    <Card key={u.id} style={{ marginBottom: 10 }}>
-                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                                                <Avatar initials={u.avatar} size={40} color={u.role === "admin" ? S.danger : u.role === "management" ? S.gold : S.blueLight} />
+                                <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>New Trip Request</h2>
+                                <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Fill in your trip details below</p>
+
+                                {/* Progress */}
+                                <div style={{ display: "flex", gap: 6, marginBottom: 24 }}>
+                                    {[1, 2, 3].map(s => (
+                                        <div key={s} style={{ flex: 1, height: 4, borderRadius: 4, background: s <= requestStep ? S.gold : S.border, transition: "background 0.3s" }} />
+                                    ))}
+                                </div>
+
+                                {requestStep === 1 && (
+                                    <Card>
+                                        <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 1: Locations</h3>
+                                        <div style={{ background: S.surfaceAlt, borderRadius: 14, padding: 14, marginBottom: 14, position: "relative" }}>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                                                 <div>
-                                                    <p style={{ margin: 0, color: S.text, fontWeight: 700, fontSize: 14 }}>{u.name}</p>
-                                                    <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>{u.dept}</p>
-                                                    <p style={{ margin: "2px 0 0", color: S.textDim, fontSize: 11 }}>{u.email}</p>
+                                                    <p style={{ margin: "0 0 4px", color: S.gold, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>📍 Pickup Location</p>
+                                                    <select value={tripForm.pickup} onChange={e => setTripForm(p => ({ ...p, pickup: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: tripForm.pickup ? S.text : S.textMuted, fontSize: 14, fontFamily: "inherit", outline: "none", padding: "4px 0" }}>
+                                                        <option value="">Select pickup location...</option>
+                                                        {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div style={{ height: 1, background: S.border }} />
+                                                <div>
+                                                    <p style={{ margin: "0 0 4px", color: S.success, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>🏁 Destination</p>
+                                                    <select value={tripForm.destination} onChange={e => setTripForm(p => ({ ...p, destination: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: tripForm.destination ? S.text : S.textMuted, fontSize: 14, fontFamily: "inherit", outline: "none", padding: "4px 0" }}>
+                                                        <option value="">Select destination...</option>
+                                                        {LOCATIONS.filter(l => l !== tripForm.pickup).map(l => <option key={l} value={l}>{l}</option>)}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <Btn onClick={() => { if (!tripForm.pickup || !tripForm.destination) return showToast("Select both locations", "error"); setRequestStep(2); }} style={{ width: "100%", justifyContent: "center" }} size="lg">Continue →</Btn>
+                                    </Card>
+                                )}
+
+                                {requestStep === 2 && (
+                                    <Card>
+                                        <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 2: Date & Details</h3>
+                                        <div style={{ display: "flex", gap: 10 }}>
+                                            <div style={{ flex: 1 }}><Input label="Date" value={tripForm.date} onChange={v => setTripForm(p => ({ ...p, date: v }))} type="date" required min={new Date().toISOString().split("T")[0]} /></div>
+                                            <div style={{ flex: 1 }}><Input label="Time" value={tripForm.time} onChange={v => setTripForm(p => ({ ...p, time: v }))} type="time" required /></div>
+                                        </div>
+                                        <Input label="Purpose of Trip" value={tripForm.purpose} onChange={v => setTripForm(p => ({ ...p, purpose: v }))} options={PURPOSES.map(p => ({ value: p, label: p }))} required />
+                                        <Input label="Number of Passengers" value={tripForm.passengers} onChange={v => setTripForm(p => ({ ...p, passengers: v }))} type="number" min="1" />
+                                        <Input label="Additional Notes (optional)" value={tripForm.notes} onChange={v => setTripForm(p => ({ ...p, notes: v }))} placeholder="Any special requirements..." />
+                                        <div style={{ display: "flex", gap: 10 }}>
+                                            <Btn variant="outline" onClick={() => setRequestStep(1)} style={{ flex: 1, justifyContent: "center" }}>← Back</Btn>
+                                            <Btn onClick={() => { if (!tripForm.date || !tripForm.time || !tripForm.purpose) return showToast("Fill all required fields", "error"); setRequestStep(3); }} style={{ flex: 2, justifyContent: "center" }}>Review →</Btn>
+                                        </div>
+                                    </Card>
+                                )}
+
+                                {requestStep === 3 && (
+                                    <Card>
+                                        <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 3: Confirm Request</h3>
+                                        {[["📍 From", tripForm.pickup], ["🏁 To", tripForm.destination], ["📅 Date", `${tripForm.date} at ${tripForm.time}`], ["🎯 Purpose", tripForm.purpose], ["👥 Passengers", tripForm.passengers]].map(([label, val]) => (
+                                            <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${S.border}` }}>
+                                                <span style={{ color: S.textMuted, fontSize: 13 }}>{label}</span>
+                                                <span style={{ color: S.text, fontSize: 13, fontWeight: 700, maxWidth: "55%", textAlign: "right" }}>{val}</span>
+                                            </div>
+                                        ))}
+                                        <div style={{ marginTop: 14, padding: 12, background: `${S.blue}18`, border: `1px solid ${S.blue}33`, borderRadius: 10 }}>
+                                            <p style={{ margin: 0, color: "#7DBFFF", fontSize: 12 }}>📆 Upon approval, your Microsoft Teams calendar and the transport department calendar will be automatically updated.</p>
+                                        </div>
+                                        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                                            <Btn variant="outline" onClick={() => setRequestStep(2)} style={{ flex: 1, justifyContent: "center" }}>← Edit</Btn>
+                                            <Btn onClick={handleRequestTrip} style={{ flex: 2, justifyContent: "center" }} size="lg">✓ Submit Request</Btn>
+                                        </div>
+                                    </Card>
+                                )}
+                            </div>
+                        )}
+
+                        {/* ── TRIPS TAB ── */}
+                        {tab === "trips" && (
+                            <div>
+                                <h2 style={{ margin: "0 0 16px", color: S.text, fontSize: 20, fontWeight: 900 }}>
+                                    {currentUser?.role === "admin" ? "All Trip Requests" : currentUser?.role === "driver" ? "My Allocated Trips" : "My Trips"}
+                                </h2>
+
+                                {/* Driver allocated vehicle card toggle overlay */}
+                                {currentUser?.role === "driver" && (
+                                    <Card style={{ marginBottom: 16, background: "rgba(212, 160, 23, 0.05)" }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <div>
+                                                <p style={{ margin: 0, color: S.gold, fontSize: 13, fontWeight: 700, textTransform: "uppercase" }}>Current Vehicle Assignment</p>
+                                                {drivers.find(d => d.name === currentUser.name)?.vehicle ? (
+                                                    <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>
+                                                        <span style={{ fontSize: 20 }}>🚐</span>
+                                                        <span style={{ color: S.text, fontSize: 15, fontWeight: 600 }}>{vehicles.find(v => v.id === drivers.find(d => d.name === currentUser.name)?.vehicle)?.name || "Unknown"}</span>
+                                                        <span style={{ color: S.textMuted, fontSize: 13 }}>• {vehicles.find(v => v.id === drivers.find(d => d.name === currentUser.name)?.vehicle)?.plate || ""}</span>
+                                                    </div>
+                                                ) : (
+                                                    <p style={{ margin: "4px 0 0", color: S.danger, fontSize: 13, fontWeight: 600 }}>⚠ Unassigned</p>
+                                                )}
+                                            </div>
+                                            <Btn variant={drivers.find(d => d.name === currentUser.name)?.vehicle ? "outline" : "gold"} onClick={() => setDriverAllocationForm({ open: true, driverId: currentUser.id, vehicleId: drivers.find(d => d.name === currentUser.name)?.vehicle || "" })}>
+                                                {drivers.find(d => d.name === currentUser.name)?.vehicle ? 'Change Vehicle' : 'Select Vehicle'}
+                                            </Btn>
+                                        </div>
+                                    </Card>
+                                )}
+                                {(currentUser?.role === "admin" ? trips : myTrips).slice().reverse().map(t => (
+                                    <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
+                                        if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
+                                        else handleRejectTrip(trip);
+                                    }} />
+                                ))}
+                            </div>
+                        )}
+
+                        {/* ── FLEET TAB ── */}
+                        {tab === "fleet" && (
+                            <div>
+                                <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Fleet Management</h2>
+                                <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Vehicles</p>
+
+                                <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                                    <div style={{ flex: 1 }}>
+                                        <Input value={vehicleSearch} onChange={setVehicleSearch} placeholder="Search vehicles by name, plate, or type..." />
+                                    </div>
+                                    <Btn variant="outline" onClick={() => {
+                                        setVehicleForm({ id: "", name: "", plate: "", type: "", capacity: "", trips: 0, status: "available", lastService: "", assetNumber: "", homeOperation: "", odometer: "", color: "" });
+                                        setModal({ open: true, type: "vehicle" });
+                                    }} style={{ height: 50 }}>+ Add Vehicle</Btn>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                                    <h3 style={{ margin: 0, color: S.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>🚐 Vehicles ({vehicles.length})</h3>
+                                </div>
+                                {vehicles.filter(v => v.name.toLowerCase().includes(vehicleSearch.toLowerCase()) || v.plate.toLowerCase().includes(vehicleSearch.toLowerCase()) || v.type.toLowerCase().includes(vehicleSearch.toLowerCase())).map(v => (
+                                    <Card key={v.id} style={{ marginBottom: 10 }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                            <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                                                {v.picture ?
+                                                    <img src={v.picture} alt={v.name} style={{ width: 60, height: 60, borderRadius: 12, objectFit: "cover", border: `1px solid ${S.border}` }} />
+                                                    : <div style={{ width: 60, height: 60, borderRadius: 12, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🚐</div>
+                                                }
+                                                <div>
+                                                    <p style={{ margin: 0, color: S.text, fontWeight: 800, fontSize: 15 }}>{v.name}</p>
+                                                    <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 12 }}>{v.plate} • {v.type} • Cap: {v.capacity}</p>
+                                                    <p style={{ margin: "4px 0 0", color: S.textDim, fontSize: 11 }}>Last service: {v.lastService} | Disk Expiry: {v.licenseDiskExpiry || "N/A"}</p>
                                                 </div>
                                             </div>
                                             <div style={{ textAlign: "right" }}>
-                                                <Badge status={u.status} />
-                                                <p style={{ margin: "4px 0 0", color: S.textMuted, fontSize: 11, textTransform: "capitalize" }}>{u.role}</p>
-                                                {u.status === "pending" && (
-                                                    <Btn variant="success" size="sm" onClick={() => handleApproveUser(u.id)} style={{ marginTop: 6 }}>Approve</Btn>
-                                                )}
+                                                <Badge status={v.status} />
+                                                <p style={{ margin: "6px 0 0", color: S.gold, fontSize: 13, fontWeight: 700 }}>{v.trips} trips</p>
+                                                <Btn variant="ghost" size="sm" style={{ marginTop: 8, padding: "4px 8px", fontSize: 11 }} onClick={() => { setVehicleForm(v); setModal({ open: true, type: "vehicle" }); }}>✎ Edit</Btn>
                                             </div>
                                         </div>
                                     </Card>
                                 ))}
                             </div>
-                        )
-                    }
+                        )}
 
-                    {/* ── DASHBOARD TAB (management) ── */}
-                    {
-                        tab === "dashboard" && currentUser?.role === "management" && (
-                            <div>
-                                <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Management Dashboard</h2>
-                                <p style={{ margin: "0 0 16px", color: S.textMuted, fontSize: 13 }}>Sibanye Stillwater Transport Overview</p>
+                        {/* ── USERS TAB (admin) ── */}
+                        {
+                            tab === "users" && currentUser?.role === "admin" && (
+                                <div>
+                                    <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Personnel Management</h2>
+                                    <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Manage users, drivers, and administrators</p>
 
-                                {/* Period selector */}
-                                <div style={{ display: "flex", gap: 6, marginBottom: 20, background: S.surface, border: `1px solid ${S.border}`, borderRadius: 12, padding: 4 }}>
-                                    {["weekly", "monthly", "quarterly"].map(p => (
-                                        <button key={p} onClick={() => setChartPeriod(p)} style={{ flex: 1, padding: "8px 0", borderRadius: 9, border: "none", background: chartPeriod === p ? S.gold : "transparent", color: chartPeriod === p ? "#0D1117" : S.textMuted, fontWeight: 700, fontSize: 12, cursor: "pointer", textTransform: "capitalize", fontFamily: "inherit" }}>{p}</button>
+                                    <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                                        <div style={{ flex: 2 }}><Input value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or dept..." /></div>
+                                        <div style={{ flex: 1 }}><Input value={userRoleFilter} onChange={setUserRoleFilter} options={[{ value: "all", label: "All Roles" }, { value: "user", label: "Users" }, { value: "driver", label: "Drivers" }, { value: "management", label: "Management" }, { value: "admin", label: "Admin" }]} /></div>
+                                    </div>
+
+                                    {users.filter(u =>
+                                        (userRoleFilter === "all" || u.role === userRoleFilter) &&
+                                        (u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase()) || (u.dept && u.dept.toLowerCase().includes(userSearch.toLowerCase())))
+                                    ).map(u => (
+                                        <Card key={u.id} style={{ marginBottom: 10 }}>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                                                    <Avatar initials={u.avatar} picture={u.picture} size={48} color={u.role === "admin" ? S.danger : u.role === "management" ? S.gold : S.blueLight} />
+                                                    <div>
+                                                        <p style={{ margin: 0, color: S.text, fontWeight: 700, fontSize: 15 }}>{u.name}</p>
+                                                        <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 13 }}>{u.dept} • <span style={{ textTransform: "capitalize", color: S.gold }}>{u.role}</span></p>
+                                                        <p style={{ margin: "2px 0 0", color: S.textDim, fontSize: 12 }}>{u.email} {u.phone && `• ${u.phone}`} {u.zNumber && `• ${u.zNumber}`}</p>
+                                                    </div>
+                                                </div>
+                                                <div style={{ textAlign: "right", display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                                                    <Badge status={u.status} />
+                                                    <div style={{ display: "flex", gap: 6 }}>
+                                                        {u.status === "pending" && (
+                                                            <Btn variant="success" size="sm" onClick={() => handleApproveUser(u.id)}>Approve</Btn>
+                                                        )}
+                                                        {u.status !== "pending" && u.id !== currentUser.id && (
+                                                            <Btn variant="outline" size="sm" onClick={() => handleToggleUserStatus(u.id)}>
+                                                                {u.status === "active" ? "Deactivate" : "Activate"}
+                                                            </Btn>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Card>
                                     ))}
                                 </div>
+                            )
+                        }
 
-                                {/* KPI cards */}
-                                <div className="grid-desktop" style={{ marginBottom: 24 }}>
-                                    <StatCard label="Total Trips" value={trips.length} icon="🗺️" color={S.gold} />
-                                    <StatCard label="Completed" value={totalCompleted} icon="✅" color={S.success} />
-                                    <StatCard label="Active Drivers" value={drivers.filter(d => d.status !== "off_duty").length} icon="👤" color={S.blueLight} />
-                                    <StatCard label="Fleet Available" value={vehicles.filter(v => v.status === "available").length} icon="🚐" color={S.warning} />
-                                </div>
+                        {/* ── DASHBOARD TAB (all) ── */}
+                        {
+                            tab === "dashboard" && (
+                                <div>
+                                    <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Analytics & Reports</h2>
+                                    <p style={{ margin: "0 0 16px", color: S.textMuted, fontSize: 13 }}>Track operations, performance and activity</p>
 
-                                {/* Trips over time chart */}
-                                <Card style={{ marginBottom: 16 }}>
-                                    <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>
-                                        📈 Trips Over Time ({chartPeriod === "weekly" ? "Weekly" : chartPeriod === "monthly" ? "Monthly" : "Quarterly"})
-                                    </h3>
-                                    <ResponsiveContainer width="100%" height={180}>
-                                        <BarChart data={chartPeriod === "weekly" ? WEEKLY_TRIPS : MONTHLY_TRIPS} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke={S.border} />
-                                            <XAxis dataKey={chartPeriod === "weekly" ? "week" : "month"} tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <YAxis tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
-                                            <Bar dataKey="trips" fill={S.gold} radius={[6, 6, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </Card>
-
-                                {/* Driver allocation */}
-                                <Card style={{ marginBottom: 16 }}>
-                                    <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>👤 Driver Trip Allocation</h3>
-                                    <ResponsiveContainer width="100%" height={160}>
-                                        <BarChart data={DRIVER_ALLOCATION} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke={S.border} horizontal={false} />
-                                            <XAxis type="number" tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="name" tick={{ fill: S.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} width={72} />
-                                            <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
-                                            <Bar dataKey="trips" fill={S.blueLight} radius={[0, 6, 6, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </Card>
-
-                                {/* Vehicle usage pie */}
-                                <Card style={{ marginBottom: 16 }}>
-                                    <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>🚐 Vehicle Trip Share</h3>
-                                    <ResponsiveContainer width="100%" height={200}>
-                                        <PieChart>
-                                            <Pie data={VEHICLE_STATS} dataKey="trips" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
-                                                {VEHICLE_STATS.map((entry, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
-                                            </Pie>
-                                            <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
-                                        {VEHICLE_STATS.map((v, i) => (
-                                            <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                                                <div style={{ width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[i] }} />
-                                                <span style={{ color: S.textMuted, fontSize: 11 }}>{v.name}: {v.trips}</span>
-                                            </div>
-                                        ))}
+                                    {/* Period & Date filters */}
+                                    <div style={{ display: "flex", gap: 16, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
+                                        <div style={{ background: S.surface, border: `1px solid ${S.border}`, borderRadius: 12, padding: 4, display: "flex", gap: 4 }}>
+                                            {["weekly", "monthly", "quarterly"].map(p => (
+                                                <button key={p} onClick={() => setChartPeriod(p)} style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: chartPeriod === p ? S.gold : "transparent", color: chartPeriod === p ? "#0D1117" : S.textMuted, fontWeight: 700, fontSize: 12, cursor: "pointer", textTransform: "capitalize", fontFamily: "inherit" }}>{p}</button>
+                                            ))}
+                                        </div>
+                                        <div style={{ display: "flex", gap: 10, flex: 1 }}>
+                                            <div style={{ flex: 1 }}><Input label="Start Date" type="date" value={dashDateRange.start} onChange={v => setDashDateRange(p => ({ ...p, start: v }))} /></div>
+                                            <div style={{ flex: 1 }}><Input label="End Date" type="date" value={dashDateRange.end} onChange={v => setDashDateRange(p => ({ ...p, end: v }))} /></div>
+                                        </div>
                                     </div>
-                                </Card>
 
-                                {/* Driver hours vs trips */}
-                                <Card>
-                                    <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>⏱ Driver Hours vs Trips</h3>
-                                    <ResponsiveContainer width="100%" height={160}>
-                                        <LineChart data={DRIVER_ALLOCATION} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke={S.border} />
-                                            <XAxis dataKey="name" tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <YAxis tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
-                                            <Line type="monotone" dataKey="trips" stroke={S.gold} strokeWidth={2} dot={{ fill: S.gold, r: 4 }} name="Trips" />
-                                            <Line type="monotone" dataKey="hours" stroke={S.blueLight} strokeWidth={2} dot={{ fill: S.blueLight, r: 4 }} name="Hours" />
-                                            <Legend wrapperStyle={{ fontSize: 11, color: S.textMuted }} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </Card>
-                            </div>
-                        )
-                    }
-                </main>
-            </div >
+                                    {/* Admin/Mgmt KPIs */}
+                                    {["admin", "management"].includes(currentUser?.role) && (
+                                        <div className="grid-desktop" style={{ marginBottom: 24 }}>
+                                            <StatCard label="Total Trips" value={trips.length} icon="🗺️" color={S.gold} />
+                                            <StatCard label="Completed" value={totalCompleted} icon="✅" color={S.success} />
+                                            <StatCard label="Active Drivers" value={drivers.filter(d => d.status !== "off_duty").length} icon="👤" color={S.blueLight} />
+                                            <StatCard label="Fleet Available" value={vehicles.filter(v => v.status === "available").length} icon="🚐" color={S.warning} />
+                                        </div>
+                                    )}
+
+                                    {/* Driver KPIs */}
+                                    {["driver"].includes(currentUser?.role) && (
+                                        <div className="grid-desktop" style={{ marginBottom: 24 }}>
+                                            <StatCard label="My Total Trips" value={myTrips.length} icon="🗺️" color={S.gold} />
+                                            <StatCard label="Completed" value={myTrips.filter(t => t.status === "completed").length} icon="✅" color={S.success} />
+                                            <StatCard label="Total Hours (Est.)" value={myTrips.length * 2.5} icon="⏱" color={S.blueLight} />
+                                        </div>
+                                    )}
+
+                                    {/* User KPIs */}
+                                    {["user"].includes(currentUser?.role) && (
+                                        <div className="grid-desktop" style={{ marginBottom: 24 }}>
+                                            <StatCard label="Requests Sent" value={myTrips.length} icon="📝" color={S.gold} />
+                                            <StatCard label="Approved & Scheduled" value={myTrips.filter(t => t.status === "approved").length} icon="✅" color={S.success} />
+                                        </div>
+                                    )}
+
+                                    {/* Trips over time chart */}
+                                    <Card style={{ marginBottom: 16 }}>
+                                        <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>
+                                            📈 Trips Over Time ({chartPeriod === "weekly" ? "Weekly" : chartPeriod === "monthly" ? "Monthly" : "Quarterly"})
+                                        </h3>
+                                        <ResponsiveContainer width="100%" height={180}>
+                                            <BarChart data={chartPeriod === "weekly" ? WEEKLY_TRIPS : MONTHLY_TRIPS} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke={S.border} />
+                                                <XAxis dataKey={chartPeriod === "weekly" ? "week" : "month"} tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                                                <YAxis tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                                                <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
+                                                <Bar dataKey="trips" fill={S.gold} radius={[6, 6, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </Card>
+
+                                    {/* Additional Charts for Admin/Mgmt */}
+                                    {["admin", "management"].includes(currentUser?.role) && (
+                                        <>
+                                            {/* Driver allocation */}
+                                            <Card style={{ marginBottom: 16 }}>
+                                                <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>👤 Driver Trip Allocation</h3>
+                                                <ResponsiveContainer width="100%" height={160}>
+                                                    <BarChart data={DRIVER_ALLOCATION} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke={S.border} horizontal={false} />
+                                                        <XAxis type="number" tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                                                        <YAxis type="category" dataKey="name" tick={{ fill: S.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} width={72} />
+                                                        <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
+                                                        <Bar dataKey="trips" fill={S.blueLight} radius={[0, 6, 6, 0]} />
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </Card>
+
+                                            {/* Vehicle usage pie */}
+                                            <Card style={{ marginBottom: 16 }}>
+                                                <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>🚐 Vehicle Trip Share</h3>
+                                                <ResponsiveContainer width="100%" height={200}>
+                                                    <PieChart>
+                                                        <Pie data={VEHICLE_STATS} dataKey="trips" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
+                                                            {VEHICLE_STATS.map((entry, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+                                                        </Pie>
+                                                        <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+                                                    {VEHICLE_STATS.map((v, i) => (
+                                                        <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                                            <div style={{ width: 10, height: 10, borderRadius: 3, background: PIE_COLORS[i] }} />
+                                                            <span style={{ color: S.textMuted, fontSize: 11 }}>{v.name}: {v.trips}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </Card>
+
+                                            {/* Driver hours vs trips */}
+                                            <Card>
+                                                <h3 style={{ margin: "0 0 14px", color: S.text, fontSize: 14, fontWeight: 800 }}>⏱ Driver Hours vs Trips</h3>
+                                                <ResponsiveContainer width="100%" height={160}>
+                                                    <LineChart data={DRIVER_ALLOCATION} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke={S.border} />
+                                                        <XAxis dataKey="name" tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                                                        <YAxis tick={{ fill: S.textMuted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                                                        <Tooltip contentStyle={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, borderRadius: 10, color: S.text }} />
+                                                        <Line type="monotone" dataKey="trips" stroke={S.gold} strokeWidth={2} dot={{ fill: S.gold, r: 4 }} name="Trips" />
+                                                        <Line type="monotone" dataKey="hours" stroke={S.blueLight} strokeWidth={2} dot={{ fill: S.blueLight, r: 4 }} name="Hours" />
+                                                        <Legend wrapperStyle={{ fontSize: 11, color: S.textMuted }} />
+                                                    </LineChart>
+                                                </ResponsiveContainer>
+                                            </Card>
+                                        </>
+                                    )}
+                                </div>
+                            )
+                        }
+                    </main>
+                </div>
+            )}
+
+            {["landing", "login", "register"].includes(view) && <Footer />}
 
             {/* Bottom Nav (Mobile Only) */}
-            < div className="mobile-nav" style={{ position: "fixed", bottom: 0, left: 0, width: "100%", background: "var(--surface)", backdropFilter: "blur(12px)", borderTop: `1px solid var(--border)`, zIndex: 100, paddingBottom: "env(safe-area-inset-bottom)" }}>
-                {
-                    navTabs.map(t => (
-                        <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "12px 4px 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, position: "relative" }}>
-                            {t.id === "trips" && currentUser?.role === "admin" && pendingTrips.length > 0 && (
-                                <div style={{ position: "absolute", top: 8, right: "25%", width: 8, height: 8, background: S.danger, borderRadius: "50%" }} />
-                            )}
-                            <span style={{ fontSize: t.id === "request" ? 22 : 18, opacity: tab === t.id ? 1 : 0.5 }}>{t.icon}</span>
-                            <span style={{ fontSize: 10, color: tab === t.id ? S.gold : S.textMuted, fontWeight: tab === t.id ? 800 : 500, whiteSpace: "nowrap" }}>{t.label}</span>
-                            {tab === t.id && <div style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 3, background: S.gold, borderRadius: "3px 3px 0 0" }} />}
-                        </button>
-                    ))
-                }
-            </div >
+            {view === "app" && (
+                <div className="mobile-nav" style={{ position: "fixed", bottom: 0, left: 0, width: "100%", background: "var(--surface)", backdropFilter: "blur(12px)", borderTop: `1px solid var(--border)`, zIndex: 100, paddingBottom: "env(safe-area-inset-bottom)" }}>
+                    {
+                        navTabs.map(t => (
+                            <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "12px 4px 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, position: "relative" }}>
+                                {t.id === "trips" && currentUser?.role === "admin" && pendingTrips.length > 0 && (
+                                    <div style={{ position: "absolute", top: 8, right: "25%", width: 8, height: 8, background: S.danger, borderRadius: "50%" }} />
+                                )}
+                                <span style={{ fontSize: t.id === "request" ? 22 : 18, opacity: tab === t.id ? 1 : 0.5 }}>{t.icon}</span>
+                                <span style={{ fontSize: 10, color: tab === t.id ? S.gold : S.textMuted, fontWeight: tab === t.id ? 800 : 500, whiteSpace: "nowrap" }}>{t.label}</span>
+                                {tab === t.id && <div style={{ position: "absolute", bottom: 0, left: "25%", right: "25%", height: 3, background: S.gold, borderRadius: "3px 3px 0 0" }} />}
+                            </button>
+                        ))
+                    }
+                </div>
+            )}
+
+            {/* Vehicle Modal */}
+            <Modal open={modal.open && modal.type === "vehicle"} onClose={() => setModal({ open: false })} title={vehicleForm.id ? "Edit Vehicle" : "Add New Vehicle"}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                    <Input label="Vehicle Name / Make" value={vehicleForm.name} onChange={v => setVehicleForm(p => ({ ...p, name: v }))} placeholder="Toyota Quantum" required />
+                    <Input label="Number Plate" value={vehicleForm.plate} onChange={v => setVehicleForm(p => ({ ...p, plate: v }))} placeholder="GP 12-34 AB" required />
+                    <Input label="Type" value={vehicleForm.type} onChange={v => setVehicleForm(p => ({ ...p, type: v }))} options={["Minibus", "Bakkie", "Bus", "Sedan", "Forklift", "Low Bed", "Truck"]} required />
+                    <Input label="Capacity (Pax)" value={vehicleForm.capacity} onChange={v => setVehicleForm(p => ({ ...p, capacity: v }))} type="number" min="1" required />
+                    <Input label="Asset Number" value={vehicleForm.assetNumber} onChange={v => setVehicleForm(p => ({ ...p, assetNumber: v }))} placeholder="AST-001" />
+                    <Input label="Home Operation" value={vehicleForm.homeOperation} onChange={v => setVehicleForm(p => ({ ...p, homeOperation: v }))} options={Object.keys(OPERATIONS)} />
+                    <Input label="Odometer Reading" value={vehicleForm.odometer} onChange={v => setVehicleForm(p => ({ ...p, odometer: v }))} type="number" placeholder="15000" />
+                    <Input label="Color" value={vehicleForm.color} onChange={v => setVehicleForm(p => ({ ...p, color: v }))} placeholder="White" />
+                    <Input label="Status" value={vehicleForm.status} onChange={v => setVehicleForm(p => ({ ...p, status: v }))} options={[{ value: "available", label: "Available" }, { value: "in_use", label: "In Use" }, { value: "maintenance", label: "Maintenance" }]} required />
+                    <Input label="Last Service Date" value={vehicleForm.lastService} onChange={v => setVehicleForm(p => ({ ...p, lastService: v }))} type="date" />
+                    <Input label="License Disk Expiry" value={vehicleForm.licenseDiskExpiry} onChange={v => setVehicleForm(p => ({ ...p, licenseDiskExpiry: v }))} type="date" required />
+                    <Input label="Maintenance Interval (km)" value={vehicleForm.maintenanceInterval} onChange={v => setVehicleForm(p => ({ ...p, maintenanceInterval: v }))} type="number" placeholder="15000" />
+                </div>
+
+                {/* Mock Vehicle Picture Upload */}
+                <div style={{ marginBottom: 16, textAlign: "left", marginTop: 8 }}>
+                    <label style={{ display: "block", color: S.textMuted, fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>Vehicle Picture</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                        <Btn variant="outline" size="sm" onClick={() => showToast("Vehicle picture selected (mock upload)", "info")}>Browse File...</Btn>
+                        <span style={{ fontSize: 12, color: S.textDim }}>Max 5MB (JPG/PNG)</span>
+                    </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                    <Btn variant="outline" onClick={() => setModal({ open: false })} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
+                    <Btn onClick={handleSaveVehicle} style={{ flex: 2, justifyContent: "center" }}>{vehicleForm.id ? "Save Changes" : "Add Vehicle"}</Btn>
+                </div>
+            </Modal>
+
+            {/* Driver Modal */}
+            <Modal open={modal.open && modal.type === "driver"} onClose={() => setModal({ open: false })} title={driverForm.id ? "Edit Driver" : "Add New Driver"}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+                    <Input label="First Name" value={driverForm.name} onChange={v => setDriverForm(p => ({ ...p, name: v }))} placeholder="Sipho" required />
+                    <Input label="Surname" value={driverForm.surname} onChange={v => setDriverForm(p => ({ ...p, surname: v }))} placeholder="Mahlangu" required />
+                    <Input label="Z-Number" value={driverForm.zNumber} onChange={v => setDriverForm(p => ({ ...p, zNumber: v }))} placeholder="Z123456" required />
+                    <Input label="Phone Number" value={driverForm.phone} onChange={v => setDriverForm(p => ({ ...p, phone: v }))} placeholder="+27 82 123 4567" required />
+                    <Input label="Email Address" value={driverForm.email} onChange={v => setDriverForm(p => ({ ...p, email: v }))} type="email" placeholder="driver@sibanyestillwater.com" />
+                    <Input label="Home Operation" value={driverForm.operation} onChange={v => setDriverForm(p => ({ ...p, operation: v }))} options={Object.keys(OPERATIONS)} />
+                    <Input label="License Type" value={driverForm.license} onChange={v => setDriverForm(p => ({ ...p, license: v }))} options={["Code 8", "Code 10", "Code 14", "PrDP"]} required />
+                    <Input label="Status" value={driverForm.status} onChange={v => setDriverForm(p => ({ ...p, status: v }))} options={[{ value: "available", label: "Available" }, { value: "on_trip", label: "On Trip" }, { value: "off_duty", label: "Off Duty" }]} required />
+                </div>
+                {/* Mock Profile Picture Upload */}
+                <div style={{ marginBottom: 16, textAlign: "left", marginTop: 8 }}>
+                    <label style={{ display: "block", color: S.textMuted, fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>Driver Picture</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                        <Avatar initials={driverForm.name ? driverForm.name[0] : "?"} size={40} />
+                        <Btn variant="outline" size="sm" onClick={() => showToast("Picture selected (mock upload)", "info")}>Browse File...</Btn>
+                    </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                    <Btn variant="outline" onClick={() => setModal({ open: false })} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
+                    <Btn onClick={handleSaveDriver} style={{ flex: 2, justifyContent: "center" }}>{driverForm.id ? "Save Changes" : "Add Driver"}</Btn>
+                </div>
+            </Modal>
 
             {/* Schedule Trip Modal */}
-            < Modal open={modal.open && modal.type === "schedule"} onClose={() => setModal({ open: false })} title={`Schedule Trip ${modal.data?.id}`}>
+            <Modal open={modal.open && modal.type === "schedule"} onClose={() => setModal({ open: false })} title={`Schedule Trip ${modal.data?.id}`}>
                 {
                     modal.data && (
                         <div>
