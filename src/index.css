@@ -8,27 +8,27 @@
   --surface: #ffffff;
   --surface-alt: #f0f2f5;
   --surface-hover: #e5e7eb;
-  --border-light: rgba(141, 198, 63, 0.15);
-  /* light green tint */
-  --border: rgba(141, 198, 63, 0.3);
-  --border-focus: rgba(253, 184, 19, 0.6);
+  --border-light: rgba(140, 142, 144, 0.15);
+  /* light grey tint */
+  --border: rgba(140, 142, 144, 0.3);
+  --border-focus: rgba(177, 148, 90, 0.6);
   /* gold focus */
 
-  --gold: #fdb813;
-  /* Sibanye Gold/Yellow */
-  --gold-light: #fecd45;
-  --gold-glow: rgba(253, 184, 19, 0.25);
-  --blue: #8dc63f;
-  /* Sibanye Leaf Green (replacing blue) */
-  --blue-light: #a3d45e;
+  --gold: #b1945a;
+  /* Sibanye Sand/Gold */
+  --gold-light: #c0a672;
+  --gold-glow: rgba(177, 148, 90, 0.25);
+  --blue: #8c8e90;
+  /* Sibanye Grey (replacing bright green) */
+  --blue-light: #a9abad;
   --success: #10b981;
   --success-bg: rgba(16, 185, 129, 0.15);
   --danger: #ef4444;
   --danger-bg: rgba(239, 68, 68, 0.15);
   --warning: #f59e0b;
 
-  --text-main: #414042;
-  /* Charcoal grey for high contrast on white */
+  --text-main: #131313;
+  /* Black/Dark text */
   --text-muted: #6b7280;
   --text-dim: #9ca3af;
 
@@ -57,10 +57,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
-  /* Add a modern radial gradient background using Green and Gold */
+  /* Add a modern radial gradient background using Grey and Gold */
   background-image:
-    radial-gradient(circle at 15% 50%, rgba(141, 198, 63, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 85% 30%, rgba(253, 184, 19, 0.06) 0%, transparent 50%);
+    radial-gradient(circle at 15% 50%, rgba(140, 142, 144, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 85% 30%, rgba(177, 148, 90, 0.06) 0%, transparent 50%);
   background-attachment: fixed;
 }
 
@@ -87,7 +87,7 @@ body {
 .glass-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md), var(--shadow-glow);
-  border-color: rgba(253, 184, 19, 0.4);
+  border-color: rgba(177, 148, 90, 0.4);
   background: #fdfdfd;
 }
 

@@ -242,16 +242,29 @@ const TripCard = ({ trip, onAction, role }) => (
 const Header = ({ currentUser, setView, setCurrentUser }) => (
     <header className="glass-panel" style={{ padding: "16px 40px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 2000, borderLeft: "none", borderRight: "none", borderRadius: 0, borderTop: "none" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 16, cursor: "pointer" }} onClick={() => setView(currentUser ? "app" : "landing")}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: `0 4px 12px ${S.gold}44` }}>🚐</div>
-                <div>
-                    <div style={{ color: S.text, fontSize: 18, fontWeight: 800, letterSpacing: "0.02em", fontFamily: "var(--font-sans)" }}>EM GROUP</div>
-                    <div style={{ color: S.gold, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Transport Scheduler</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                {/* EM Group Logo */}
+                <div style={{ display: "flex", alignItems: "center", gap: 16, cursor: "pointer", borderRight: `1px solid var(--border)`, paddingRight: 16 }} onClick={() => { setCurrentUser(null); setView("landing"); setTab("home"); }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, var(--gold), var(--gold-light))`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: `0 4px 12px var(--gold-glow)` }}>🚐</div>
+                    <div>
+                        <div style={{ color: "var(--text-main)", fontSize: 18, fontWeight: 800, letterSpacing: "0.02em", fontFamily: "var(--font-sans)" }}>EM GROUP</div>
+                        <div style={{ color: "var(--gold)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Transport Scheduler</div>
+                    </div>
+                </div>
+
+                {/* Sibanye Stillwater Logo */}
+                <div style={{ display: "flex", alignItems: "center" }}>
+                    <img
+                        src="https://upload.wikimedia.org/wikipedia/en/8/87/Sibanye-Stillwater_Logo.svg"
+                        alt="Sibanye Stillwater"
+                        style={{ height: 38, objectFit: "contain", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.05))" }}
+                        onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
+                    />
                 </div>
             </div>
 
             <nav style={{ display: "flex", gap: 32, marginLeft: 24, paddingLeft: 32, borderLeft: `1px solid var(--border)` }}>
-                <a href="#" onClick={(e) => { e.preventDefault(); setView(currentUser ? "app" : "landing"); setTab("home"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Home</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); setCurrentUser(null); setView("landing"); setTab("home"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Home</a>
                 <a href="#" onClick={(e) => { e.preventDefault(); setView(currentUser ? "app" : "login"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Book Transport</a>
                 <a href="#" onClick={(e) => { e.preventDefault(); alert("Admin: admin@emgcompanies.co.za\nPhone: 072 611 3841\nAddress: Unit C41, Ifafi Business Center, 80 Die Ou Wapad St, Ifafi, Hartbeespoort, 0219"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Contact Us</a>
             </nav>
@@ -358,6 +371,8 @@ export default function App() {
     const [tripForm, setTripForm] = useState({ pickup: "", destination: "", date: "", time: "", purpose: "", passengers: "1", notes: "" });
     const [scheduleForm, setScheduleForm] = useState({ driver: "", vehicle: "" });
     const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+    const [vehicleRequests, setVehicleRequests] = useState([]); // { id: str, driverName: str, requestedVehicleId: str, status: 'pending'|'approved'|'rejected', date: str }
+    const [driverAllocationForm, setDriverAllocationForm] = useState({ open: false, driverId: "", vehicleId: "" });
     const OPERATIONS = {
         "SA Region - Gold": ["Driefontein", "Kloof", "Beatrix", "Burnstone"],
         "SA Region - PGM": ["Rustenburg", "Marikana", "Kroondal", "Platinum Mile"],
@@ -426,7 +441,7 @@ export default function App() {
             zNumber: regForm.zNumber,
             operation: regForm.operation,
             subOperation: regForm.subOperation,
-            role: regForm.role,
+            role: regForm.role || "user",
             status: "pending",
             dept: regForm.dept,
             avatar: (regForm.firstName[0] || "") + (regForm.surname[0] || ""),
@@ -519,6 +534,31 @@ export default function App() {
     const handleToggleUserStatus = (userId) => {
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: u.status === "active" ? "inactive" : "active" } : u));
         showToast("User status updated", "success");
+    };
+
+    const handleFleetAllocationRequest = () => {
+        if (!driverAllocationForm.vehicleId) return showToast("Select a vehicle", "error");
+        const newReq = {
+            id: `VR${Date.now()}`,
+            driverName: currentUser.name,
+            requestedVehicleId: driverAllocationForm.vehicleId,
+            status: 'pending',
+            date: new Date().toISOString().split("T")[0]
+        };
+        setVehicleRequests(prev => [...prev, newReq]);
+        setDriverAllocationForm({ open: false, driverId: "", vehicleId: "" });
+        showToast("Vehicle change request submitted to Admin for review", "success");
+    };
+
+    const handleApproveVehicleRequest = (reqId, isApproved) => {
+        const req = vehicleRequests.find(r => r.id === reqId);
+        if (isApproved && req) {
+            setDrivers(prev => prev.map(d => d.name === req.driverName ? { ...d, vehicle: req.requestedVehicleId } : d));
+            showToast("Vehicle request approved", "success");
+        } else {
+            showToast("Vehicle request declined", "info");
+        }
+        setVehicleRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: isApproved ? 'approved' : 'rejected' } : r));
     };
 
     const myTrips = trips.filter(t => currentUser?.role === "driver" ? t.driver === currentUser.name : t.userId === currentUser?.id);
@@ -664,9 +704,10 @@ export default function App() {
         user: [{ id: "home", icon: "🏠", label: "Home" }, { id: "request", icon: "➕", label: "New Trip" }, { id: "trips", icon: "📋", label: "My Trips" }, { id: "dashboard", icon: "📊", label: "Dashboard" }],
         driver: [{ id: "home", icon: "🏠", label: "Home" }, { id: "trips", icon: "📋", label: "Allocated Trips" }, { id: "dashboard", icon: "📊", label: "Dashboard" }],
         admin: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }],
-        management: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }],
+        management: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }],
     };
 
+    // Fallback to "user" tabs if role is undefined or not in TABS
     const navTabs = TABS[currentUser?.role] || TABS.user;
 
     return (
@@ -691,7 +732,7 @@ export default function App() {
                             <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "12px 16px", background: tab === t.id ? "rgba(212, 160, 23, 0.1)" : "transparent", border: "none", borderRadius: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s", color: tab === t.id ? S.gold : S.textMuted, textAlign: "left" }} onMouseEnter={e => { if (tab !== t.id) e.currentTarget.style.background = "var(--surface-alt)"; e.currentTarget.style.color = S.text; }} onMouseLeave={e => { if (tab !== t.id) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = S.textMuted; } else { e.currentTarget.style.color = S.gold; } }}>
                                 <span style={{ fontSize: 20 }}>{t.icon}</span>
                                 <span style={{ fontSize: 15, fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
-                                {t.id === "trips" && currentUser?.role === "admin" && pendingTrips.length > 0 && (
+                                {t.id === "trips" && ["admin", "management"].includes(currentUser?.role) && pendingTrips.length > 0 && (
                                     <span style={{ marginLeft: "auto", background: S.danger, width: 8, height: 8, borderRadius: "50%" }} />
                                 )}
                             </button>
@@ -714,10 +755,10 @@ export default function App() {
 
                                 <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
                                     <StatCard label="My Trips" value={myTrips.length} icon="🧳" color={S.gold} sub={`${myTrips.filter(t => t.status === "completed").length} completed`} />
-                                    <StatCard label={currentUser?.role === "admin" ? "Pending" : "Approved"} value={currentUser?.role === "admin" ? pendingTrips.length : myTrips.filter(t => t.status === "approved").length} icon={currentUser?.role === "admin" ? "⏳" : "✅"} color={currentUser?.role === "admin" && pendingTrips.length > 0 ? S.danger : S.success} />
+                                    <StatCard label={["admin", "management"].includes(currentUser?.role) ? "Pending" : "Approved"} value={["admin", "management"].includes(currentUser?.role) ? pendingTrips.length : myTrips.filter(t => t.status === "approved").length} icon={["admin", "management"].includes(currentUser?.role) ? "⏳" : "✅"} color={["admin", "management"].includes(currentUser?.role) && pendingTrips.length > 0 ? S.danger : S.success} />
                                 </div>
 
-                                {currentUser?.role === "user" && (
+                                {["user", undefined].includes(currentUser?.role) && (
                                     <Card style={{ marginBottom: 16, cursor: "pointer" }} onClick={() => setTab("request")}>
                                         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                                             <div style={{ width: 52, height: 52, borderRadius: 16, background: `linear-gradient(135deg, ${S.gold}, ${S.goldLight})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🚐</div>
@@ -730,7 +771,7 @@ export default function App() {
                                     </Card>
                                 )}
 
-                                {currentUser?.role === "admin" && pendingTrips.length > 0 && (
+                                {["admin", "management"].includes(currentUser?.role) && pendingTrips.length > 0 && (
                                     <div style={{ marginBottom: 16 }}>
                                         <h3 style={{ margin: "0 0 10px", color: S.text, fontSize: 14, fontWeight: 700 }}>🔔 Pending Approval</h3>
                                         {pendingTrips.slice(0, 2).map(t => (
@@ -754,9 +795,9 @@ export default function App() {
 
                                 {/* Recent trips */}
                                 <h3 style={{ margin: "0 0 10px", color: S.text, fontSize: 14, fontWeight: 700 }}>
-                                    {currentUser?.role === "admin" ? "📋 Recent Requests" : "📋 Recent Trips"}
+                                    {["admin", "management"].includes(currentUser?.role) ? "📋 Recent Requests" : "📋 Recent Trips"}
                                 </h3>
-                                {(currentUser?.role === "admin" ? trips : myTrips).slice(-3).reverse().map(t => (
+                                {(["admin", "management"].includes(currentUser?.role) ? trips : myTrips).slice(-3).reverse().map(t => (
                                     <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
                                         if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
                                         else handleRejectTrip(trip);
@@ -766,7 +807,7 @@ export default function App() {
                         )}
 
                         {/* ── REQUEST TRIP TAB ── */}
-                        {tab === "request" && currentUser?.role === "user" && (
+                        {tab === "request" && ["user", undefined].includes(currentUser?.role) && (
                             <div>
                                 <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>New Trip Request</h2>
                                 <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Fill in your trip details below</p>
@@ -846,7 +887,7 @@ export default function App() {
                         {tab === "trips" && (
                             <div>
                                 <h2 style={{ margin: "0 0 16px", color: S.text, fontSize: 20, fontWeight: 900 }}>
-                                    {currentUser?.role === "admin" ? "All Trip Requests" : currentUser?.role === "driver" ? "My Allocated Trips" : "My Trips"}
+                                    {["admin", "management"].includes(currentUser?.role) ? "All Trip Requests" : currentUser?.role === "driver" ? "My Allocated Trips" : "My Trips"}
                                 </h2>
 
                                 {/* Driver allocated vehicle card toggle overlay */}
@@ -864,14 +905,27 @@ export default function App() {
                                                 ) : (
                                                     <p style={{ margin: "4px 0 0", color: S.danger, fontSize: 13, fontWeight: 600 }}>⚠ Unassigned</p>
                                                 )}
+
+                                                {/* Show pending vehicle request if any */}
+                                                {vehicleRequests.find(r => r.driverName === currentUser.name && r.status === "pending") && (
+                                                    <div style={{ marginTop: 8, padding: "6px 12px", background: "rgba(245, 158, 11, 0.15)", borderRadius: 6, display: "inline-block", border: `1px solid ${S.warning}` }}>
+                                                        <p style={{ margin: 0, color: S.warning, fontSize: 12, fontWeight: 700 }}>
+                                                            ⏳ Pending Approval for: {vehicles.find(v => v.id === vehicleRequests.find(r => r.driverName === currentUser.name && r.status === "pending").requestedVehicleId)?.name || "Unknown"}
+                                                        </p>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <Btn variant={drivers.find(d => d.name === currentUser.name)?.vehicle ? "outline" : "gold"} onClick={() => setDriverAllocationForm({ open: true, driverId: currentUser.id, vehicleId: drivers.find(d => d.name === currentUser.name)?.vehicle || "" })}>
-                                                {drivers.find(d => d.name === currentUser.name)?.vehicle ? 'Change Vehicle' : 'Select Vehicle'}
+                                            <Btn
+                                                variant={drivers.find(d => d.name === currentUser.name)?.vehicle ? "outline" : "gold"}
+                                                disabled={vehicleRequests.some(r => r.driverName === currentUser.name && r.status === "pending")}
+                                                onClick={() => setDriverAllocationForm({ open: true, driverId: currentUser.id, vehicleId: drivers.find(d => d.name === currentUser.name)?.vehicle || "" })}
+                                            >
+                                                {vehicleRequests.some(r => r.driverName === currentUser.name && r.status === "pending") ? 'Request Pending...' : (drivers.find(d => d.name === currentUser.name)?.vehicle ? 'Change Vehicle' : 'Select Vehicle')}
                                             </Btn>
                                         </div>
                                     </Card>
                                 )}
-                                {(currentUser?.role === "admin" ? trips : myTrips).slice().reverse().map(t => (
+                                {(["admin", "management"].includes(currentUser?.role) ? trips : myTrips).slice().reverse().map(t => (
                                     <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
                                         if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
                                         else handleRejectTrip(trip);
@@ -884,7 +938,29 @@ export default function App() {
                         {tab === "fleet" && (
                             <div>
                                 <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Fleet Management</h2>
-                                <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Vehicles</p>
+                                <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Vehicles & Assignments</p>
+
+                                {/* Vehicle Requests Block (Admin/Mgmt ONLY) */}
+                                {vehicleRequests.filter(r => r.status === "pending").length > 0 && (
+                                    <Card style={{ marginBottom: 24, border: `1px solid ${S.warning}` }}>
+                                        <h3 style={{ margin: "0 0 12px", color: S.warning, fontSize: 14, fontWeight: 700 }}>⚠️ Pending Driver Vehicle Requests</h3>
+                                        {vehicleRequests.filter(r => r.status === "pending").map(req => {
+                                            const v = vehicles.find(veh => veh.id === req.requestedVehicleId);
+                                            return (
+                                                <div key={req.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${S.borderLight}` }}>
+                                                    <div>
+                                                        <p style={{ margin: 0, color: S.text, fontSize: 14, fontWeight: 700 }}>{req.driverName}</p>
+                                                        <p style={{ margin: 0, color: S.textMuted, fontSize: 13 }}>Requested: 🚐 {v ? `${v.name} (${v.plate})` : "Unknown Vehicle"}</p>
+                                                    </div>
+                                                    <div style={{ display: "flex", gap: 8 }}>
+                                                        <Btn variant="success" size="sm" onClick={() => handleApproveVehicleRequest(req.id, true)}>Approve</Btn>
+                                                        <Btn variant="danger" size="sm" onClick={() => handleApproveVehicleRequest(req.id, false)}>Decline</Btn>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                    </Card>
+                                )}
 
                                 <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
                                     <div style={{ flex: 1 }}>
@@ -925,7 +1001,7 @@ export default function App() {
 
                         {/* ── USERS TAB (admin) ── */}
                         {
-                            tab === "users" && currentUser?.role === "admin" && (
+                            tab === "users" && ["admin", "management"].includes(currentUser?.role) && (
                                 <div>
                                     <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Personnel Management</h2>
                                     <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Manage users, drivers, and administrators</p>
@@ -1102,7 +1178,7 @@ export default function App() {
                     {
                         navTabs.map(t => (
                             <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, padding: "12px 4px 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, position: "relative" }}>
-                                {t.id === "trips" && currentUser?.role === "admin" && pendingTrips.length > 0 && (
+                                {t.id === "trips" && ["admin", "management"].includes(currentUser?.role) && pendingTrips.length > 0 && (
                                     <div style={{ position: "absolute", top: 8, right: "25%", width: 8, height: 8, background: S.danger, borderRadius: "50%" }} />
                                 )}
                                 <span style={{ fontSize: t.id === "request" ? 22 : 18, opacity: tab === t.id ? 1 : 0.5 }}>{t.icon}</span>
@@ -1170,6 +1246,17 @@ export default function App() {
                 <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                     <Btn variant="outline" onClick={() => setModal({ open: false })} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
                     <Btn onClick={handleSaveDriver} style={{ flex: 2, justifyContent: "center" }}>{driverForm.id ? "Save Changes" : "Add Driver"}</Btn>
+                </div>
+            </Modal>
+
+            {/* Driver Allocation Request Modal */}
+            <Modal open={driverAllocationForm.open} onClose={() => setDriverAllocationForm({ open: false, driverId: "", vehicleId: "" })} title="Request Vehicle Change">
+                <p style={{ margin: "0 0 16px", color: S.textMuted, fontSize: 14 }}>Select the vehicle you would like to be assigned to. Your transport manager will review your request.</p>
+                <Input label="Select Vehicle" value={driverAllocationForm.vehicleId} onChange={v => setDriverAllocationForm(p => ({ ...p, vehicleId: v }))}
+                    options={vehicles.filter(v => v.status === "available").map(v => ({ value: v.id, label: `${v.name} – ${v.plate}` }))} required />
+                <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                    <Btn variant="outline" onClick={() => setDriverAllocationForm({ open: false, driverId: "", vehicleId: "" })} style={{ flex: 1, justifyContent: "center" }}>Cancel</Btn>
+                    <Btn onClick={handleFleetAllocationRequest} style={{ flex: 2, justifyContent: "center" }}>Submit Request</Btn>
                 </div>
             </Modal>
 
