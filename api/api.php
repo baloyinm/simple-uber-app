@@ -96,6 +96,17 @@ function sendResponse($data) {
     exit();
 }
 
+function sendEmail($to, $subject, $message) {
+    $headers = "MIME-Version: 1.0" . "\r\n";
+    $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+    $headers .= 'From: <' . SMTP_USER . '>' . "\r\n";
+    
+    // Note: On specialized VPS environments with SSL/TLS SMTP, 
+    // it's recommended to use PHPMailer. For now, we use standard mail() 
+    // with headers to attempt delivery through the system MTA.
+    return mail($to, $subject, $message, $headers);
+}
+
 try {
     if ($action === 'users') {
         if ($method === 'GET') {
@@ -105,11 +116,32 @@ try {
             $data = json_decode(file_get_contents("php://input"));
             $stmt = $conn->prepare("INSERT INTO users (name, email, role, status, dept, avatar, password) VALUES (?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$data->name, $data->email, $data->role, 'pending', $data->dept, substr($data->name, 0, 2), $data->password]);
+            
+            // Notify Admin of new registration
+            $adminEmail = "admin@omholdings.co.za"; 
+            $subject = "New Transport Scheduler Registration: " . $data->name;
+            $msg = "A new user has registered and is awaiting approval.<br><br>";
+            $msg .= "<b>Name:</b> " . $data->name . "<br>";
+            $msg .= "<b>Email:</b> " . $data->email . "<br>";
+            $msg .= "<b>Department:</b> " . $data->dept . "<br>";
+            sendEmail($adminEmail, $subject, $msg);
+
             sendResponse(['id' => $conn->lastInsertId()]);
         } elseif ($method === 'PUT') {
             $data = json_decode(file_get_contents("php://input"));
             $stmt = $conn->prepare("UPDATE users SET status = ? WHERE id = ?");
             $stmt->execute([$data->status, $data->id]);
+
+            // Notify User of status change
+            $uStmt = $conn->prepare("SELECT email, name FROM users WHERE id = ?");
+            $uStmt->execute([$data->id]);
+            $user = $uStmt->fetch(PDO::FETCH_ASSOC);
+            if ($user) {
+                $subject = "Account Status Update - Transport Scheduler";
+                $msg = "Hello " . $user['name'] . ",<br><br>Your account status has been updated to: <b>" . $data->status . "</b>";
+                sendEmail($user['email'], $subject, $msg);
+            }
+
             sendResponse(['success' => true]);
         }
     } elseif ($action === 'login') {
@@ -143,6 +175,15 @@ try {
             $tripId = "T" . time() . rand(10, 99);
             $stmt = $conn->prepare("INSERT INTO trips (id, userId, userName, pickup, destination, trip_date, trip_time, purpose, passengers, status, createdAt, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)");
             $stmt->execute([$tripId, $data->userId, $data->userName, $data->pickup, $data->destination, $data->date, $data->time, $data->purpose, $data->passengers, date('Y-m-d'), $data->notes]);
+            
+            // Notify Admin of new trip request
+            $adminEmail = "admin@omholdings.co.za";
+            $subject = "New Trip Request: " . $tripId;
+            $msg = "A new transport request hasn't been submitted by <b>" . $data->userName . "</b>.<br><br>";
+            $msg .= "<b>Destination:</b> " . $data->destination . "<br>";
+            $msg .= "<b>Date:</b> " . $data->date . " at " . $data->time . "<br>";
+            sendEmail($adminEmail, $subject, $msg);
+
             sendResponse(['id' => $tripId]);
         } elseif ($method === 'PUT') {
             $data = json_decode(file_get_contents("php://input"));

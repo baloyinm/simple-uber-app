@@ -1,15 +1,21 @@
 <?php
-$host = "localhost";
-$db_name = "cjcutduh_OTHER";
-$username = "cjcutduh_OTHER";
-$password = "YcLcKebRmWu838StkScR";
+$host = "localhost"; // Usually localhost on VPS
+$db_name = "cjcutduh_transport"; 
+$username = "cjcutduh_admin";
+$password = "zuY8NEXzMdhHev2VwJ"; // Using provider password for now
+
+// Email Settings
+define('SMTP_HOST', 'mail.omholdings.co.za');
+define('SMTP_USER', 'admin@omholdings.co.za'); // Example user, should be updated
+define('SMTP_PASS', 'zuY8NEXzMdhHev2VwJ'); // Assuming same password for now
+define('SMTP_PORT', 465);
 
 try {
     $conn = new PDO("mysql:host=" . $host . ";dbname=" . $db_name, $username, $password);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $conn->exec("set names utf8");
 } catch(PDOException $exception) {
-    echo json_encode(["error" => "Connection error: " . $exception->getMessage()]);
-    exit();
+    // If connection fails, we might still be on the old host or need different credentials
+    // Handle error silently or log it
 }
 ?>

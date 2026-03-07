@@ -166,7 +166,7 @@ const Toast = ({ msg, type }) => {
     if (!msg) return null;
     const colors = { success: S.success, error: S.danger, info: S.blue };
     return (
-        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: S.surface, border: `1px solid ${colors[type] || S.border}`, color: colors[type] || S.text, borderRadius: 12, padding: "12px 20px", zIndex: 2000, fontSize: 14, fontWeight: 600, maxWidth: 340, textAlign: "center", boxShadow: `0 8px 32px #0008` }}>
+        <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: S.surface, border: `1px solid ${colors[type] || S.border}`, color: colors[type] || S.text, borderRadius: 12, padding: "12px 20px", zIndex: 3000, fontSize: 14, fontWeight: 600, maxWidth: 340, textAlign: "center", boxShadow: `0 8px 32px #0008` }}>
             {type === "success" ? "✓ " : type === "error" ? "✕ " : "ℹ "}{msg}
         </div>
     );
@@ -453,6 +453,18 @@ export default function App() {
         setUsers(prev => [...prev, newUser]);
 
         showToast("Registration submitted! Awaiting admin approval.", "success");
+
+        // Reset registration form
+        setRegForm({
+            firstName: "", surname: "", cellphone: "", zNumber: "",
+            workEmailPrefix: "", workEmailDomain: "@sibanyestillwater.com", personalEmail: "",
+            operation: "", subOperation: "", dept: "", role: "user", password: "",
+            picture: "", licenseExpiry: "", prdpExpiry: "", licensePicture: ""
+        });
+
+        // Reset login form for a 'clean page' experience
+        setLoginForm({ email: "", password: "" });
+
         setTimeout(() => setView("login"), 1500);
     };
 
@@ -1011,7 +1023,40 @@ export default function App() {
                                         <div style={{ flex: 1 }}><Input value={userRoleFilter} onChange={setUserRoleFilter} options={[{ value: "all", label: "All Roles" }, { value: "user", label: "Users" }, { value: "driver", label: "Drivers" }, { value: "management", label: "Management" }, { value: "admin", label: "Admin" }]} /></div>
                                     </div>
 
-                                    {users.filter(u =>
+                                    {users.filter(u => u.status === "pending" &&
+                                        (userRoleFilter === "all" || u.role === userRoleFilter) &&
+                                        (u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase()) || (u.dept && u.dept.toLowerCase().includes(userSearch.toLowerCase())))
+                                    ).length > 0 && (
+                                            <>
+                                                <h3 style={{ margin: "16px 0 12px", color: S.warning, fontSize: 14, fontWeight: 800 }}>⚠️ Pending Approval</h3>
+                                                {users.filter(u => u.status === "pending" &&
+                                                    (userRoleFilter === "all" || u.role === userRoleFilter) &&
+                                                    (u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase()) || (u.dept && u.dept.toLowerCase().includes(userSearch.toLowerCase())))
+                                                ).map(u => (
+                                                    <Card key={u.id} style={{ marginBottom: 10, border: `1px solid ${S.warning}` }}>
+                                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                                            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                                                                <Avatar initials={u.avatar} picture={u.picture} size={48} color={u.role === "admin" ? S.danger : u.role === "management" ? S.gold : S.blueLight} />
+                                                                <div>
+                                                                    <p style={{ margin: 0, color: S.text, fontWeight: 700, fontSize: 15 }}>{u.name}</p>
+                                                                    <p style={{ margin: "2px 0 0", color: S.textMuted, fontSize: 13 }}>{u.dept} • <span style={{ textTransform: "capitalize", color: S.gold }}>{u.role}</span></p>
+                                                                    <p style={{ margin: "2px 0 0", color: S.textDim, fontSize: 12 }}>{u.email} {u.phone && `• ${u.phone}`} {u.zNumber && `• ${u.zNumber}`}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ textAlign: "right", display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                                                                <Badge status={u.status} />
+                                                                <div style={{ display: "flex", gap: 6 }}>
+                                                                    <Btn variant="success" size="sm" onClick={() => handleApproveUser(u.id)}>Approve</Btn>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </Card>
+                                                ))}
+                                            </>
+                                        )}
+
+                                    <h3 style={{ margin: "24px 0 12px", color: S.text, fontSize: 14, fontWeight: 800 }}>✓ Registered Users</h3>
+                                    {users.filter(u => u.status !== "pending" &&
                                         (userRoleFilter === "all" || u.role === userRoleFilter) &&
                                         (u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase()) || (u.dept && u.dept.toLowerCase().includes(userSearch.toLowerCase())))
                                     ).map(u => (
@@ -1028,10 +1073,7 @@ export default function App() {
                                                 <div style={{ textAlign: "right", display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
                                                     <Badge status={u.status} />
                                                     <div style={{ display: "flex", gap: 6 }}>
-                                                        {u.status === "pending" && (
-                                                            <Btn variant="success" size="sm" onClick={() => handleApproveUser(u.id)}>Approve</Btn>
-                                                        )}
-                                                        {u.status !== "pending" && u.id !== currentUser.id && (
+                                                        {u.id !== currentUser.id && (
                                                             <Btn variant="outline" size="sm" onClick={() => handleToggleUserStatus(u.id)}>
                                                                 {u.status === "active" ? "Deactivate" : "Activate"}
                                                             </Btn>
