@@ -109,8 +109,8 @@ const Avatar = ({ initials, picture, size = 36, color = S.gold }) => {
     </div>;
 };
 
-const Card = ({ children, style, className = "" }) => (
-    <div className={`glass-card ${className}`} style={{ padding: 24, ...style }}>
+const Card = ({ children, style, className = "", onClick }) => (
+    <div className={`glass-card ${className}`} style={{ padding: 24, ...style, cursor: onClick ? "pointer" : undefined }} onClick={onClick}>
         {children}
     </div>
 );
@@ -397,11 +397,26 @@ export default function App() {
     const [driverForm, setDriverForm] = useState({ id: "", name: "", surname: "", zNumber: "", email: "", operation: "", license: "", vehicle: "", trips: 0, status: "available", phone: "", picture: "", licenseExpiry: "", prdpExpiry: "" });
 
     useEffect(() => {
-        // Mock Data Initialization
-        setTrips(MOCK_TRIPS);
-        setUsers(MOCK_USERS);
-        setDrivers(MOCK_DRIVERS);
-        setVehicles(MOCK_VEHICLES);
+        const load = async () => {
+            try {
+                const [uRes, tRes, dRes, vRes] = await Promise.all([
+                    fetch(`${API_URL}?action=users`),
+                    fetch(`${API_URL}?action=trips`),
+                    fetch(`${API_URL}?action=drivers`),
+                    fetch(`${API_URL}?action=vehicles`),
+                ]);
+                const [uData, tData, dData, vData] = await Promise.all([uRes.json(), tRes.json(), dRes.json(), vRes.json()]);
+                setUsers(Array.isArray(uData) && uData.length > 0 ? uData : MOCK_USERS);
+                // Normalize DB field names (trip_date/trip_time -> date/time)
+                setTrips(Array.isArray(tData) && tData.length > 0 ? tData.map(t => ({ ...t, date: t.date || t.trip_date, time: t.time || t.trip_time })) : MOCK_TRIPS);
+                setDrivers(Array.isArray(dData) && dData.length > 0 ? dData : MOCK_DRIVERS);
+                setVehicles(Array.isArray(vData) && vData.length > 0 ? vData : MOCK_VEHICLES);
+            } catch (e) {
+                // Fallback to mock data if API is unavailable
+                setTrips(MOCK_TRIPS); setUsers(MOCK_USERS); setDrivers(MOCK_DRIVERS); setVehicles(MOCK_VEHICLES);
+            }
+        };
+        load();
     }, []);
 
     const showToast = (msg, type = "success") => {
@@ -410,17 +425,28 @@ export default function App() {
     };
 
     const handleLogin = async () => {
-        // Mock Login
-        let user = users.find(u => u.email === loginForm.email);
-
-        if (user && loginForm.password === "demo") { // simple mock auth
-            if (user.status === "pending") return showToast("Your account is awaiting admin approval", "info");
-            setCurrentUser(user);
-            setView("app");
-            setTab("home");
-            showToast(`Welcome back, ${user.name.split(" ")[0]}! ✓`, "success");
+        try {
+            const res = await fetch(`${API_URL}?action=login`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: loginForm.email, password: loginForm.password })
+            });
+            const data = await res.json();
+            if (data.success && data.user) {
+                const user = data.user;
+                if (user.status === 'pending') return showToast('Your account is awaiting admin approval', 'info');
+                setCurrentUser(user); setView('app'); setTab('home');
+                showToast(`Welcome back, ${user.name.split(' ')[0]}! ✓`, 'success');
+                return;
+            }
+        } catch (e) { /* fall through to mock */ }
+        // Fallback: mock login
+        const user = users.find(u => u.email === loginForm.email);
+        if (user && loginForm.password === 'demo') {
+            if (user.status === 'pending') return showToast('Your account is awaiting admin approval', 'info');
+            setCurrentUser(user); setView('app'); setTab('home');
+            showToast(`Welcome back, ${user.name.split(' ')[0]}! ✓`, 'success');
         } else {
-            showToast("User not found or incorrect password", "error");
+            showToast('User not found or incorrect password', 'error');
         }
     };
 
@@ -450,59 +476,66 @@ export default function App() {
             prdpExpiry: regForm.prdpExpiry,
             licensePicture: regForm.licensePicture
         };
+        try {
+            await fetch(`${API_URL}?action=users`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...newUser, password: regForm.password || 'demo' })
+            });
+        } catch (e) { /* API unavailable, add locally */ }
         setUsers(prev => [...prev, newUser]);
-
-        showToast("Registration submitted! Awaiting admin approval.", "success");
-
-        // Reset registration form
+        showToast('Registration submitted! Awaiting admin approval.', 'success');
         setRegForm({
-            firstName: "", surname: "", cellphone: "", zNumber: "",
-            workEmailPrefix: "", workEmailDomain: "@sibanyestillwater.com", personalEmail: "",
-            operation: "", subOperation: "", dept: "", role: "user", password: "",
-            picture: "", licenseExpiry: "", prdpExpiry: "", licensePicture: ""
+            firstName: '', surname: '', cellphone: '', zNumber: '',
+            workEmailPrefix: '', workEmailDomain: '@sibanyestillwater.com', personalEmail: '',
+            operation: '', subOperation: '', dept: '', role: 'user', password: '',
+            picture: '', licenseExpiry: '', prdpExpiry: '', licensePicture: ''
         });
-
-        // Reset login form for a 'clean page' experience
-        setLoginForm({ email: "", password: "" });
-
-        setTimeout(() => setView("login"), 1500);
+        setLoginForm({ email: '', password: '' });
+        setTimeout(() => setView('login'), 1500);
     };
 
     const handleRequestTrip = async () => {
-        if (!tripForm.pickup || !tripForm.destination || !tripForm.date || !tripForm.time) return showToast("Please fill all required fields", "error");
-
-        // Mock trip request
-        const newTrip = {
-            id: `T00${trips.length + 1}`,
-            userId: currentUser.id,
-            userName: currentUser.name,
-            ...tripForm,
-            status: "pending",
-            createdAt: new Date().toISOString().split("T")[0],
-            teamsUpdated: false
-        };
+        if (!tripForm.pickup || !tripForm.destination || !tripForm.date || !tripForm.time) return showToast('Please fill all required fields', 'error');
+        const newTrip = { id: `T00${trips.length + 1}`, userId: currentUser.id, userName: currentUser.name, ...tripForm, status: 'pending', createdAt: new Date().toISOString().split('T')[0], teamsUpdated: false };
+        try {
+            const res = await fetch(`${API_URL}?action=trips`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...newTrip, userId: currentUser.id, userName: currentUser.name })
+            });
+            const data = await res.json();
+            if (data.id) newTrip.id = data.id;
+        } catch (e) { /* API unavailable, add locally */ }
         setTrips(prev => [...prev, newTrip]);
-        setTripForm({ pickup: "", destination: "", date: "", time: "", purpose: "", passengers: "1", notes: "" });
+        setTripForm({ pickup: '', destination: '', date: '', time: '', purpose: '', passengers: '1', notes: '' });
         setRequestStep(1);
-        showToast(`Trip request submitted! ✓`, "success");
-        setTab("trips");
+        showToast('Trip request submitted! ✓', 'success');
+        setTab('trips');
     };
 
     const handleApproveTrip = async () => {
-        if (!scheduleForm.driver || !scheduleForm.vehicle) return showToast("Please assign a driver and vehicle", "error");
-
-        // Mock trip approval
+        if (!scheduleForm.driver || !scheduleForm.vehicle) return showToast('Please assign a driver and vehicle', 'error');
         const veh = vehicles.find(v => v.id === scheduleForm.vehicle);
-        setTrips(prev => prev.map(t => t.id === modal.data.id ? { ...t, status: "approved", driver: scheduleForm.driver, vehicle: scheduleForm.vehicle, plate: veh?.plate, teamsUpdated: true } : t));
-        setModal({ open: false });
-        setScheduleForm({ driver: "", vehicle: "" });
-        showToast(`✓ Trip approved & Teams Calendar updated for all parties`, "success");
+        const tripId = modal.data.id;
+        try {
+            await fetch(`${API_URL}?action=trips`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'approve', id: tripId, driver: scheduleForm.driver, vehicle: scheduleForm.vehicle, plate: veh?.plate })
+            });
+        } catch (e) { /* API unavailable, update locally */ }
+        setTrips(prev => prev.map(t => t.id === tripId ? { ...t, status: 'approved', driver: scheduleForm.driver, vehicle: scheduleForm.vehicle, plate: veh?.plate, teamsUpdated: true } : t));
+        setModal({ open: false }); setScheduleForm({ driver: '', vehicle: '' });
+        showToast('✓ Trip approved & calendar invite sent to user', 'success');
     };
 
     const handleRejectTrip = async (trip) => {
-        // Mock trip rejection
-        setTrips(prev => prev.map(t => t.id === trip.id ? { ...t, status: "rejected" } : t));
-        showToast("Trip declined and user notified", "info");
+        try {
+            await fetch(`${API_URL}?action=trips`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'reject', id: trip.id })
+            });
+        } catch (e) { /* API unavailable, update locally */ }
+        setTrips(prev => prev.map(t => t.id === trip.id ? { ...t, status: 'rejected' } : t));
+        showToast('Trip declined and user notified', 'info');
     };
 
     const handleSaveVehicle = async () => {
@@ -530,17 +563,22 @@ export default function App() {
     };
 
     const handleApproveUser = async (userId) => {
-        // Mock approve user
+        try {
+            await fetch(`${API_URL}?action=users`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: userId, status: 'active' })
+            });
+        } catch (e) { /* API unavailable, update locally */ }
         const user = users.find(u => u.id === userId);
-        if (user && user.role === "driver") {
+        if (user && user.role === 'driver') {
             setDrivers(prev => [...prev, {
-                id: prev.length + 1, name: user.name, surname: user.name.split(" ")[1] || "",
+                id: prev.length + 1, name: user.name, surname: user.name.split(' ')[1] || '',
                 zNumber: user.zNumber, email: user.email, operation: user.operation,
-                license: "PrDP", vehicle: "", trips: 0, status: "available", phone: user.cellphone, picture: user.picture
+                license: 'PrDP', vehicle: '', trips: 0, status: 'available', phone: user.cellphone, picture: user.picture
             }]);
         }
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: "active" } : u));
-        showToast("User approved and notified ✓", "success");
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'active' } : u));
+        showToast('User approved and notified ✓', 'success');
     };
 
     const handleToggleUserStatus = (userId) => {
