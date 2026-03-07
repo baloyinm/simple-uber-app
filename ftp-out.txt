@@ -1,0 +1,15 @@
+﻿Root directories: .cl.selector, .php, .trash, imap, .clwpos, ride-backend, Maildir, .cagefs, tmp, nodevenv, domains, .softaculous
+
+/public_html contains:
+.htaccess
+cgi-bin/
+install.php
+index.html
+assets/
+
+/domains/omholdings.co.za/public_html contains:
+.htaccess
+cgi-bin/
+install.php
+index.html
+assets/

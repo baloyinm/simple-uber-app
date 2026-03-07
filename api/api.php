@@ -10,7 +10,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-include_once 'config.php';
+try {
+    include_once 'config.php';
+} catch (PDOException $e) {
+    echo json_encode(["success" => false, "error" => "Database connection failed", "details" => $e->getMessage()]);
+    exit();
+}
 include_once 'smtp_helper.php';
 
 // Initialization logic to create tables and insert mock data if empty
@@ -61,6 +66,23 @@ $createTables = [
         createdAt VARCHAR(50),
         teamsUpdated BOOLEAN DEFAULT FALSE,
         notes TEXT
+    )",
+    "CREATE TABLE IF NOT EXISTS vehicle_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        vehicle_id VARCHAR(50) NOT NULL,
+        status VARCHAR(50) NOT NULL,
+        reason VARCHAR(255),
+        changed_by VARCHAR(255),
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )",
+    "CREATE TABLE IF NOT EXISTS analytics_requests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        instructions TEXT,
+        file_path VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )"
 ];
 
@@ -97,13 +119,17 @@ function sendResponse($data) {
     exit();
 }
 
-function sendEmail($to, $subject, $message) {
+function sendEmail($to, $subject, $message, $icsContent = null) {
     if (defined('SMTP_HOST') && defined('SMTP_USER') && defined('SMTP_PASS')) {
         // Use robust SMTP helper if configured
         $from_email = SMTP_USER; 
         $from_name = "EM Group Transport Scheduler";
         
-        $result = sendSmtpEmail($to, $subject, $message, $from_email, $from_name, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS);
+        if ($icsContent) {
+            $result = sendSmtpEmailWithIcs($to, $subject, $message, $icsContent, $from_email, $from_name, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS);
+        } else {
+            $result = sendSmtpEmail($to, $subject, $message, $from_email, $from_name, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS);
+        }
         
         if ($result !== true) {
             // Log or handle SMTP error if necessary
@@ -177,6 +203,23 @@ try {
         if ($method === 'GET') {
             $stmt = $conn->query("SELECT * FROM vehicles");
             sendResponse($stmt->fetchAll(PDO::FETCH_ASSOC));
+        } elseif ($method === 'PUT') {
+            $data = json_decode(file_get_contents("php://input"));
+            if (isset($data->action) && $data->action === 'update_status') {
+                $stmt = $conn->prepare("UPDATE vehicles SET status = ? WHERE id = ?");
+                $stmt->execute([$data->status, $data->id]);
+                
+                // Log the status change
+                $logStmt = $conn->prepare("INSERT INTO vehicle_logs (vehicle_id, status, reason, changed_by) VALUES (?, ?, ?, ?)");
+                $logStmt->execute([$data->id, $data->status, $data->reason, $data->changedBy]);
+
+                sendResponse(['success' => true]);
+            }
+        }
+    } elseif ($action === 'vehicle_logs') {
+        if ($method === 'GET') {
+            $stmt = $conn->query("SELECT * FROM vehicle_logs ORDER BY timestamp DESC");
+            sendResponse($stmt->fetchAll(PDO::FETCH_ASSOC));
         }
     } elseif ($action === 'trips') {
         if ($method === 'GET') {
@@ -202,12 +245,101 @@ try {
             if (isset($data->action) && $data->action === 'approve') {
                 $stmt = $conn->prepare("UPDATE trips SET status = 'approved', driver = ?, vehicle = ?, plate = ?, teamsUpdated = 1 WHERE id = ?");
                 $stmt->execute([$data->driver, $data->vehicle, $data->plate, $data->id]);
-                // Update vehicle and driver status logic could go here
+                
+                // Fetch trip details for invite
+                $tStmt = $conn->prepare("SELECT * FROM trips WHERE id = ?");
+                $tStmt->execute([$data->id]);
+                $trip = $tStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($trip) {
+                    // Fetch requester details
+                    $uStmt = $conn->prepare("SELECT email, name FROM users WHERE id = ?");
+                    $uStmt->execute([$trip['userId']]);
+                    $user = $uStmt->fetch(PDO::FETCH_ASSOC);
+
+                    if ($user && $user['email']) {
+                        // Generate ICS Content
+                        $startTime = strtotime($trip['trip_date'] . ' ' . $trip['trip_time']);
+                        $endTime = $startTime + (2 * 3600); // Assume 2 hour block
+                        $dtStart = gmdate("Ymd\THis\Z", $startTime);
+                        $dtEnd = gmdate("Ymd\THis\Z", $endTime);
+                        $uid = md5(uniqid(mt_rand(), true)) . "@omholdings.co.za";
+
+                        $icsContent = "BEGIN:VCALENDAR\r\n";
+                        $icsContent .= "VERSION:2.0\r\n";
+                        $icsContent .= "PRODID:-//EM Group//Transport Scheduler//EN\r\n";
+                        $icsContent .= "METHOD:REQUEST\r\n";
+                        $icsContent .= "BEGIN:VEVENT\r\n";
+                        $icsContent .= "UID:" . $uid . "\r\n";
+                        $icsContent .= "DTSTART:" . $dtStart . "\r\n";
+                        $icsContent .= "DTEND:" . $dtEnd . "\r\n";
+                        $icsContent .= "DTSTAMP:" . gmdate("Ymd\THis\Z") . "\r\n";
+                        $icsContent .= "SUMMARY:Transport Allocated: " . $trip['pickup'] . " to " . $trip['destination'] . "\r\n";
+                        $icsContent .= "DESCRIPTION:Your transport request has been approved.\\n\\nDriver: " . $data->driver . "\\nVehicle: " . $data->vehicle . " (" . $data->plate . ")\\nPurpose: " . $trip['purpose'] . "\r\n";
+                        $icsContent .= "LOCATION:" . $trip['pickup'] . "\r\n";
+                        $icsContent .= "ORGANIZER;CN=EM Group Transport:mailto:admin@omholdings.co.za\r\n";
+                        $icsContent .= "ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:" . $user['email'] . "\r\n";
+                        $icsContent .= "STATUS:CONFIRMED\r\n";
+                        $icsContent .= "END:VEVENT\r\n";
+                        $icsContent .= "END:VCALENDAR\r\n";
+
+                        // Send Email to User
+                        $subject = "Transport Request Approved - Calendar Invite";
+                        $msg = "Hello " . $user['name'] . ",<br><br>Your transport request from <b>" . $trip['pickup'] . "</b> to <b>" . $trip['destination'] . "</b> has been approved.<br><br>";
+                        $msg .= "<b>Driver:</b> " . $data->driver . "<br>";
+                        $msg .= "<b>Vehicle:</b> " . $data->plate . "<br><br>";
+                        $msg .= "Please find the attached calendar invite for Microsoft Teams / Outlook.";
+                        
+                        sendEmail($user['email'], $subject, $msg, $icsContent);
+                        
+                        // Send Email to Admin as well
+                        sendEmail("admin@omholdings.co.za", "Transport Approved & Scheduled", "A trip has been approved and scheduled for " . $user['name'] . ".", $icsContent);
+                    }
+                }
             } elseif (isset($data->action) && $data->action === 'reject') {
                 $stmt = $conn->prepare("UPDATE trips SET status = 'rejected' WHERE id = ?");
                 $stmt->execute([$data->id]);
             }
             sendResponse(['success' => true]);
+        }
+    } elseif ($action === 'analytics') {
+        if ($method === 'GET') {
+            $stmt = $conn->query("SELECT * FROM analytics_requests ORDER BY created_at DESC");
+            sendResponse($stmt->fetchAll(PDO::FETCH_ASSOC));
+        } elseif ($method === 'POST') {
+            $name = $_POST['name'] ?? '';
+            $email = $_POST['email'] ?? '';
+            $instructions = $_POST['instructions'] ?? '';
+            $file_path = '';
+
+            if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = 'uploads/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+                $fileName = time() . '_' . basename($_FILES['file']['name']);
+                $targetFile = $uploadDir . $fileName;
+                if (move_uploaded_file($_FILES['file']['tmp_name'], $targetFile)) {
+                    $file_path = $targetFile;
+                }
+            }
+
+            $stmt = $conn->prepare("INSERT INTO analytics_requests (name, email, instructions, file_path) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$name, $email, $instructions, $file_path]);
+
+            // Notify Admin of new analytics request
+            $adminEmail = "admin@omholdings.co.za";
+            $subject = "New Data Analytics Request: " . $name;
+            $msg = "A new data analytics request has been submitted.<br><br>";
+            $msg .= "<b>Name:</b> " . $name . "<br>";
+            $msg .= "<b>Email:</b> " . $email . "<br>";
+            $msg .= "<b>Instructions:</b> " . $instructions . "<br>";
+            if ($file_path) {
+                $msg .= "<b>File:</b> " . $file_path . "<br>";
+            }
+            sendEmail($adminEmail, $subject, $msg);
+
+            sendResponse(['success' => true, 'id' => $conn->lastInsertId()]);
         }
     } else {
         sendResponse(['error' => 'Invalid action']);

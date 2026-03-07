@@ -1,4 +1,5 @@
 import * as ftp from "basic-ftp";
+import fs from "fs";
 
 async function deploy() {
     const client = new ftp.Client();
@@ -13,42 +14,44 @@ async function deploy() {
 
         console.log('Connected to FTP Server');
 
-        let targetDir = 'public_html';
+        const targetDir = 'public_html';
+        console.log(`Target directory chosen: /${targetDir}`);
 
-        const list = await client.list();
-        const domainsDir = list.find(d => d.name === 'domains');
+        // Navigate to target
+        await client.cd('/' + targetDir);
 
-        if (domainsDir) {
-            await client.cd('domains');
-            const domainsList = await client.list();
-            if (domainsList.find(d => d.name === 'sibanye.omholdings.co.za')) {
-                targetDir = 'domains/sibanye.omholdings.co.za/public_html';
-            } else if (domainsList.find(d => d.name === 'omholdings.co.za')) {
-                await client.cd('omholdings.co.za/public_html');
-                const pubList = await client.list();
-                if (pubList.find(d => d.name === 'sibanye')) {
-                    targetDir = 'domains/omholdings.co.za/public_html/sibanye';
-                } else {
-                    targetDir = 'domains/omholdings.co.za/public_html';
-                }
-                await client.cd('../../..');
-            } else {
-                await client.cd('..');
-            }
+        console.log('Removing old frontend files...');
+        try {
+            await client.remove("index.html");
+            await client.remove("vite.svg");
+            // Do not remove api/ directory, to preserve config.php
+        } catch (e) {
+            // ignore
         }
 
-        console.log(`Target directory chosen: ${targetDir}`);
+        try {
+            await client.removeDir("assets");
+        } catch (e) {
+            // ignore
+        }
 
-        // Ensure root and api dir
-        await client.cd('/');
-        await client.ensureDir(`${targetDir}/api`);
-        await client.cd('/');
+        // Re-ensure api dir
+        await client.ensureDir("api");
 
         console.log('Uploading dist directory...');
-        await client.uploadFromDir('dist', targetDir);
+        await client.uploadFromDir('dist', '/' + targetDir);
 
-        console.log('Uploading api directory...');
-        await client.uploadFromDir('api', `${targetDir}/api`);
+        console.log('Uploading api directory (excluding config.php)...');
+        const apiFiles = fs.readdirSync('api');
+        for (const file of apiFiles) {
+            if (file === 'config.php') {
+                console.log('Skipping config.php to preserve live credentials');
+                continue;
+            }
+            if (fs.statSync(`api/${file}`).isFile()) {
+                await client.uploadFrom(`api/${file}`, `/${targetDir}/api/${file}`);
+            }
+        }
 
         console.log('Deployment complete!');
     } catch (err) {
