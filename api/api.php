@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 include_once 'config.php';
+include_once 'smtp_helper.php';
 
 // Initialization logic to create tables and insert mock data if empty
 $createTables = [
@@ -97,14 +98,25 @@ function sendResponse($data) {
 }
 
 function sendEmail($to, $subject, $message) {
-    $headers = "MIME-Version: 1.0" . "\r\n";
-    $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-    $headers .= 'From: <' . SMTP_USER . '>' . "\r\n";
-    
-    // Note: On specialized VPS environments with SSL/TLS SMTP, 
-    // it's recommended to use PHPMailer. For now, we use standard mail() 
-    // with headers to attempt delivery through the system MTA.
-    return mail($to, $subject, $message, $headers);
+    if (defined('SMTP_HOST') && defined('SMTP_USER') && defined('SMTP_PASS')) {
+        // Use robust SMTP helper if configured
+        $from_email = SMTP_USER; 
+        $from_name = "EM Group Transport Scheduler";
+        
+        $result = sendSmtpEmail($to, $subject, $message, $from_email, $from_name, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS);
+        
+        if ($result !== true) {
+            // Log or handle SMTP error if necessary
+            error_log("SMTP Error: " . $result);
+        }
+        return $result === true;
+    } else {
+        // Fallback to basic mail()
+        $headers = "MIME-Version: 1.0" . "\r\n";
+        $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+        $headers .= 'From: <' . (defined('SMTP_USER') ? SMTP_USER : 'admin@emgcompanies.co.za') . '>' . "\r\n";
+        return mail($to, $subject, $message, $headers);
+    }
 }
 
 try {
