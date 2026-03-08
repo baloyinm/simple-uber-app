@@ -433,16 +433,23 @@ export default function App() {
             const data = await res.json();
             if (data.success && data.user) {
                 const user = data.user;
-                if (user.status === 'pending') return showToast('Your account is awaiting admin approval', 'info');
-                setCurrentUser(user); setView('app'); setTab('home');
+                if (user.status === 'pending') return showToast('Your account is awaiting admin approval. Please wait for an admin to approve you.', 'info');
+                // Merge any extra local fields (operation, cellphone, etc.) not stored in DB
+                const localUser = users.find(u => u.email === user.email);
+                setCurrentUser({ ...(localUser || {}), ...user });
+                setView('app'); setTab('home');
                 showToast(`Welcome back, ${user.name.split(' ')[0]}! ✓`, 'success');
                 return;
+            } else if (data.success === false) {
+                // API responded but credentials wrong — don't fall through to mock
+                showToast('Incorrect email or password', 'error');
+                return;
             }
-        } catch (e) { /* fall through to mock */ }
-        // Fallback: mock login
+        } catch (e) { /* API unavailable, fall through to mock */ }
+        // Fallback: mock/local login (API unavailable)
         const user = users.find(u => u.email === loginForm.email);
-        if (user && loginForm.password === 'demo') {
-            if (user.status === 'pending') return showToast('Your account is awaiting admin approval', 'info');
+        if (user && (loginForm.password === user.password || loginForm.password === 'demo')) {
+            if (user.status === 'pending') return showToast('Your account is awaiting admin approval. Please wait for an admin to approve you.', 'info');
             setCurrentUser(user); setView('app'); setTab('home');
             showToast(`Welcome back, ${user.name.split(' ')[0]}! ✓`, 'success');
         } else {
@@ -476,21 +483,25 @@ export default function App() {
             prdpExpiry: regForm.prdpExpiry,
             licensePicture: regForm.licensePicture
         };
+        const regPassword = regForm.password || 'demo';
         try {
             await fetch(`${API_URL}?action=users`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...newUser, password: regForm.password || 'demo' })
+                body: JSON.stringify({ ...newUser, password: regPassword })
             });
         } catch (e) { /* API unavailable, add locally */ }
-        setUsers(prev => [...prev, newUser]);
+        // Store password locally on newUser so mock fallback login works
+        setUsers(prev => [...prev, { ...newUser, password: regPassword }]);
         showToast('Registration submitted! Awaiting admin approval.', 'success');
+        // Pre-fill login form with new credentials so user is ready to sign in once approved
+        const registeredEmail = fullWorkEmail;
         setRegForm({
             firstName: '', surname: '', cellphone: '', zNumber: '',
             workEmailPrefix: '', workEmailDomain: '@sibanyestillwater.com', personalEmail: '',
             operation: '', subOperation: '', dept: '', role: 'user', password: '',
             picture: '', licenseExpiry: '', prdpExpiry: '', licensePicture: ''
         });
-        setLoginForm({ email: '', password: '' });
+        setLoginForm({ email: registeredEmail, password: regPassword });
         setTimeout(() => setView('login'), 1500);
     };
 
@@ -568,7 +579,18 @@ export default function App() {
                 method: 'PUT', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: userId, status: 'active' })
             });
-        } catch (e) { /* API unavailable, update locally */ }
+            // Re-fetch users from DB so the status change is reflected accurately in state
+            const uRes = await fetch(`${API_URL}?action=users`);
+            const uData = await uRes.json();
+            if (Array.isArray(uData) && uData.length > 0) {
+                setUsers(uData);
+            } else {
+                setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'active' } : u));
+            }
+        } catch (e) {
+            // API unavailable, update locally
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'active' } : u));
+        }
         const user = users.find(u => u.id === userId);
         if (user && user.role === 'driver') {
             setDrivers(prev => [...prev, {
@@ -577,7 +599,6 @@ export default function App() {
                 license: 'PrDP', vehicle: '', trips: 0, status: 'available', phone: user.cellphone, picture: user.picture
             }]);
         }
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'active' } : u));
         showToast('User approved and notified ✓', 'success');
     };
 
