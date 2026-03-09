@@ -83,6 +83,17 @@ $createTables = [
         file_path VARCHAR(255),
         status VARCHAR(50) DEFAULT 'pending',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )",
+    "CREATE TABLE IF NOT EXISTS driver_pictures (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        surname VARCHAR(255),
+        zNumber VARCHAR(100),
+        email VARCHAR(255),
+        phone VARCHAR(100),
+        operation VARCHAR(255),
+        picture LONGTEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )"
 ];
 
@@ -339,6 +350,24 @@ try {
             }
             sendEmail($adminEmail, $subject, $msg);
 
+            sendResponse(['success' => true, 'id' => $conn->lastInsertId()]);
+        }
+    } elseif ($action === 'driver_pictures') {
+        if ($method === 'GET') {
+            $stmt = $conn->query("SELECT id, name, surname, zNumber, email, phone, operation, picture, created_at FROM driver_pictures ORDER BY created_at DESC");
+            sendResponse($stmt->fetchAll(PDO::FETCH_ASSOC));
+        } elseif ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            $stmt = $conn->prepare("INSERT INTO driver_pictures (name, surname, zNumber, email, phone, operation, picture) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $data->name ?? '',
+                $data->surname ?? '',
+                $data->zNumber ?? '',
+                $data->email ?? '',
+                $data->phone ?? '',
+                $data->operation ?? '',
+                $data->picture ?? ''
+            ]);
             sendResponse(['success' => true, 'id' => $conn->lastInsertId()]);
         }
     } else {

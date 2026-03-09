@@ -267,6 +267,7 @@ const Header = ({ currentUser, setView, setCurrentUser }) => (
                 <a href="#" onClick={(e) => { e.preventDefault(); setCurrentUser(null); setView("landing"); setTab("home"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Home</a>
                 <a href="#" onClick={(e) => { e.preventDefault(); setView(currentUser ? "app" : "login"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Book Transport</a>
                 <a href="#" onClick={(e) => { e.preventDefault(); alert("Admin: admin@emgcompanies.co.za\nPhone: 072 611 3841\nAddress: Unit C41, Ifafi Business Center, 80 Die Ou Wapad St, Ifafi, Hartbeespoort, 0219"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Contact Us</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); setView("driverPictures"); }} style={{ color: S.gold, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.75"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>📷 Driver Pics</a>
             </nav>
         </div>
 
@@ -354,6 +355,223 @@ const Landing = ({ setView }) => (
         <div style={{ position: "absolute", bottom: "10%", right: "5%", width: 400, height: 400, background: "rgba(0,96,115,0.08)", borderRadius: "50%", filter: "blur(80px)", pointerEvents: "none" }} />
     </div>
 );
+
+// ─── DRIVER PICTURES PAGE ────────────────────────────────────────────────────
+const DriverPicturePage = ({ showToast, onBack }) => {
+    const [dpForm, setDpForm] = useState({ name: '', surname: '', zNumber: '', email: '', phone: '', operation: '' });
+    const [capturedImage, setCapturedImage] = useState(null);
+    const [cameraActive, setCameraActive] = useState(false);
+    const [records, setRecords] = useState([]);
+    const [saving, setSaving] = useState(false);
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
+    const streamRef = useRef(null);
+    const DP_OPERATIONS = ["SA Region - Gold", "SA Region - PGM", "US Region - PGM", "Europe Region", "Other"];
+
+    useEffect(() => {
+        fetch('/api/api.php?action=driver_pictures')
+            .then(r => r.json())
+            .then(data => { if (Array.isArray(data)) setRecords(data); })
+            .catch(() => {});
+        return () => { if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop()); };
+    }, []);
+
+    const startCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+            streamRef.current = stream;
+            if (videoRef.current) videoRef.current.srcObject = stream;
+            setCameraActive(true);
+        } catch (err) { showToast('Camera access denied or unavailable', 'error'); }
+    };
+
+    const stopCamera = () => {
+        if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+        setCameraActive(false);
+    };
+
+    const capturePhoto = () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        if (!video || !canvas) return;
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        setCapturedImage(canvas.toDataURL('image/jpeg', 0.82));
+        stopCamera();
+    };
+
+    const handleSave = async () => {
+        if (!dpForm.name || !dpForm.zNumber) return showToast('Name and Z-Number are required', 'error');
+        if (!capturedImage) return showToast('Please capture a photo first', 'error');
+        setSaving(true);
+        const payload = { ...dpForm, picture: capturedImage };
+        try {
+            const res = await fetch('/api/api.php?action=driver_pictures', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            setRecords(prev => [{ ...payload, id: data.id || Date.now(), created_at: new Date().toISOString() }, ...prev]);
+        } catch (e) {
+            setRecords(prev => [{ ...payload, id: Date.now(), created_at: new Date().toISOString() }, ...prev]);
+        }
+        setDpForm({ name: '', surname: '', zNumber: '', email: '', phone: '', operation: '' });
+        setCapturedImage(null);
+        setSaving(false);
+        showToast('Driver picture saved successfully ✓', 'success');
+    };
+
+    const downloadCSV = () => {
+        if (records.length === 0) return showToast('No records to download', 'info');
+        const hdrs = ['ID', 'Name', 'Surname', 'Z-Number', 'Email', 'Phone', 'Operation', 'Date'];
+        const rows = records.map(r => [r.id, r.name, r.surname, r.zNumber, r.email, r.phone, r.operation, r.created_at]);
+        const csv = [hdrs, ...rows].map(r => r.map(v => `"${v || ''}"`).join(',')).join('\n');
+        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: 'driver_pictures.csv' });
+        a.click();
+    };
+
+    const downloadJSON = () => {
+        if (records.length === 0) return showToast('No records to download', 'info');
+        const json = JSON.stringify(records.map(({ picture, ...r }) => r), null, 2);
+        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([json], { type: 'application/json' })), download: 'driver_pictures.json' });
+        a.click();
+    };
+
+    const downloadPhoto = (rec) => {
+        if (!rec.picture) return showToast('No photo available', 'info');
+        const a = Object.assign(document.createElement('a'), { href: rec.picture, download: `driver_${rec.zNumber || rec.name}.jpg` });
+        a.click();
+    };
+
+    return (
+        <div style={{ flex: 1, padding: '32px 40px', maxWidth: 1100, margin: '0 auto', width: '100%', animation: 'fadeIn 0.4s ease-out', boxSizing: 'border-box' }}>
+            <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} } @media(max-width:768px){.dp-grid{grid-template-columns:1fr!important;} .dp-table th:nth-child(4),.dp-table td:nth-child(4),.dp-table th:nth-child(5),.dp-table td:nth-child(5){display:none!important;}}`}</style>
+            {/* Page Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                    <button onClick={onBack} style={{ background: 'none', border: 'none', color: S.gold, cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: '0 0 10px', display: 'flex', alignItems: 'center', gap: 6 }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = '0.7'} onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                        ← Back
+                    </button>
+                    <h1 style={{ margin: 0, color: S.text, fontSize: 24, fontWeight: 900 }}>📷 Driver Pictures</h1>
+                    <p style={{ margin: '4px 0 0', color: S.textMuted, fontSize: 13 }}>Capture and register driver photos for identification & facial recognition</p>
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                    <Btn variant="outline" size="sm" onClick={downloadCSV}>⬇ CSV</Btn>
+                    <Btn variant="outline" size="sm" onClick={downloadJSON}>⬇ JSON</Btn>
+                </div>
+            </div>
+
+            {/* Capture + Form Grid */}
+            <div className="dp-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 28 }}>
+
+                {/* Camera Panel */}
+                <div className="glass-card" style={{ padding: 24 }}>
+                    <h3 style={{ margin: '0 0 14px', color: S.gold, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>📸 Camera Capture</h3>
+                    <div style={{ background: S.surfaceAlt, borderRadius: 14, overflow: 'hidden', width: '100%', aspectRatio: '4/3', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, position: 'relative' }}>
+                        {capturedImage ? (
+                            <img src={capturedImage} alt="Captured" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                            <>
+                                <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', display: cameraActive ? 'block' : 'none' }} />
+                                {!cameraActive && (
+                                    <div style={{ textAlign: 'center', color: S.textMuted, padding: 20 }}>
+                                        <div style={{ fontSize: 52, marginBottom: 10, filter: `drop-shadow(0 0 12px ${S.gold}44)` }}>📷</div>
+                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 500 }}>Camera preview will appear here</p>
+                                        <p style={{ margin: '4px 0 0', fontSize: 11, color: S.textDim }}>Works on laptop & mobile</p>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                    <canvas ref={canvasRef} style={{ display: 'none' }} />
+                    <div style={{ display: 'flex', gap: 10 }}>
+                        {capturedImage ? (
+                            <>
+                                <Btn variant="outline" size="sm" onClick={() => { setCapturedImage(null); startCamera(); }} style={{ flex: 1, justifyContent: 'center' }}>🔄 Retake</Btn>
+                                <div style={{ flex: 1, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, color: S.success, fontWeight: 700 }}>✓ Photo Ready</div>
+                            </>
+                        ) : cameraActive ? (
+                            <>
+                                <Btn size="sm" onClick={capturePhoto} style={{ flex: 1, justifyContent: 'center' }}>📸 Capture Photo</Btn>
+                                <Btn variant="danger" size="sm" onClick={stopCamera} style={{ flex: 1, justifyContent: 'center' }}>✕ Stop</Btn>
+                            </>
+                        ) : (
+                            <Btn onClick={startCamera} style={{ width: '100%', justifyContent: 'center' }}>▶ Start Camera</Btn>
+                        )}
+                    </div>
+                </div>
+
+                {/* Driver Details Form */}
+                <div className="glass-card" style={{ padding: 24 }}>
+                    <h3 style={{ margin: '0 0 14px', color: S.gold, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>🪪 Driver Details</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
+                        <Input label="First Name" value={dpForm.name} onChange={v => setDpForm(p => ({ ...p, name: v }))} placeholder="Sipho" required />
+                        <Input label="Surname" value={dpForm.surname} onChange={v => setDpForm(p => ({ ...p, surname: v }))} placeholder="Nkosi" />
+                    </div>
+                    <Input label="Z-Number" value={dpForm.zNumber} onChange={v => setDpForm(p => ({ ...p, zNumber: v }))} placeholder="Z123456" required />
+                    <Input label="Email Address" value={dpForm.email} onChange={v => setDpForm(p => ({ ...p, email: v }))} type="email" placeholder="sipho@company.com" />
+                    <Input label="Phone Number" value={dpForm.phone} onChange={v => setDpForm(p => ({ ...p, phone: v }))} placeholder="+27 82 123 4567" />
+                    <Input label="Operation" value={dpForm.operation} onChange={v => setDpForm(p => ({ ...p, operation: v }))} options={DP_OPERATIONS} />
+                    <Btn onClick={handleSave} disabled={saving} style={{ width: '100%', justifyContent: 'center', marginTop: 6 }}>
+                        {saving ? '⏳ Saving...' : '💾 Save to Database'}
+                    </Btn>
+                </div>
+            </div>
+
+            {/* Records Table */}
+            <div className="glass-card" style={{ padding: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ margin: 0, color: S.text, fontSize: 16, fontWeight: 800 }}>📋 Registered Driver Photos <span style={{ color: S.gold }}>({records.length})</span></h3>
+                </div>
+                {records.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '48px 0', color: S.textMuted }}>
+                        <div style={{ fontSize: 44, marginBottom: 10 }}>🫙</div>
+                        <p style={{ margin: 0, fontWeight: 500 }}>No driver photos registered yet.</p>
+                        <p style={{ margin: '4px 0 0', fontSize: 13, color: S.textDim }}>Capture and save a photo above to get started.</p>
+                    </div>
+                ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="dp-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr>
+                                    {['Photo', 'Name', 'Z-Number', 'Email', 'Phone', 'Operation', 'Date', 'Download'].map(h => (
+                                        <th key={h} style={{ padding: '10px 12px', textAlign: 'left', color: S.textMuted, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid var(--border)`, whiteSpace: 'nowrap' }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {records.map((rec, i) => (
+                                    <tr key={rec.id || i}
+                                        style={{ transition: 'background 0.15s' }}
+                                        onMouseEnter={e => e.currentTarget.style.background = S.surfaceAlt}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                        <td style={{ padding: '10px 12px' }}>
+                                            {rec.picture
+                                                ? <img src={rec.picture} alt="Driver" style={{ width: 46, height: 46, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${S.gold}55`, display: 'block' }} />
+                                                : <Avatar initials={(rec.name?.[0] || '?')} size={46} />}
+                                        </td>
+                                        <td style={{ padding: '10px 12px', color: S.text, fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>{rec.name} {rec.surname}</td>
+                                        <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}><span style={{ color: S.gold, fontSize: 13, fontWeight: 700, background: `${S.gold}15`, padding: '3px 10px', borderRadius: 20 }}>{rec.zNumber}</span></td>
+                                        <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 13 }}>{rec.email}</td>
+                                        <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 13, whiteSpace: 'nowrap' }}>{rec.phone}</td>
+                                        <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 13 }}>{rec.operation}</td>
+                                        <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 12, whiteSpace: 'nowrap' }}>{rec.created_at ? new Date(rec.created_at).toLocaleDateString('en-ZA') : '—'}</td>
+                                        <td style={{ padding: '10px 12px' }}>
+                                            <Btn variant="outline" size="sm" onClick={() => downloadPhoto(rec)}>⬇ Photo</Btn>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 const API_URL = '/api/api.php';
@@ -774,8 +992,8 @@ export default function App() {
     const TABS = {
         user: [{ id: "home", icon: "🏠", label: "Home" }, { id: "request", icon: "➕", label: "New Trip" }, { id: "trips", icon: "📋", label: "My Trips" }, { id: "dashboard", icon: "📊", label: "Dashboard" }],
         driver: [{ id: "home", icon: "🏠", label: "Home" }, { id: "trips", icon: "📋", label: "Allocated Trips" }, { id: "dashboard", icon: "📊", label: "Dashboard" }],
-        admin: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }],
-        management: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }],
+        admin: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }, { id: "driverPics", icon: "📷", label: "Driver Pics" }],
+        management: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }, { id: "driverPics", icon: "📷", label: "Driver Pics" }],
     };
 
     // Fallback to "user" tabs if role is undefined or not in TABS
@@ -790,6 +1008,11 @@ export default function App() {
             {view === "landing" && <Landing setView={setView} />}
             {view === "login" && renderLogin()}
             {view === "register" && renderRegister()}
+            {view === "driverPictures" && (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                    <DriverPicturePage showToast={showToast} onBack={() => setView(currentUser ? "app" : "landing")} />
+                </div>
+            )}
 
             {view === "app" && (
                 <div style={{ display: "flex", flex: 1, position: "relative" }}>
@@ -1267,6 +1490,11 @@ export default function App() {
                                 </div>
                             )
                         }
+                        {/* ── DRIVER PICS TAB ── */}
+                        {tab === "driverPics" && (
+                            <DriverPicturePage showToast={showToast} onBack={() => setTab("home")} />
+                        )}
+
                     </main>
                 </div>
             )}
