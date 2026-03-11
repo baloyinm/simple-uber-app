@@ -5,7 +5,7 @@ async function check() {
     client.ftp.verbose = false;
     try {
         await client.access({
-            host: 'dahost7.vpslocal.co.za',
+            host: '156.155.252.29',
             user: 'cjcutduh',
             password: 'zuY8NEXzMdhHev2VwJ',
             secure: false

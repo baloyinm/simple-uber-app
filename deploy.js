@@ -6,7 +6,7 @@ async function deploy() {
     client.ftp.verbose = true;
     try {
         await client.access({
-            host: 'dahost7.vpslocal.co.za',
+            host: '156.155.252.29',
             user: 'cjcutduh',
             password: 'zuY8NEXzMdhHev2VwJ',
             secure: false
@@ -14,11 +14,12 @@ async function deploy() {
 
         console.log('Connected to FTP Server');
 
-        const targetDir = 'public_html';
-        console.log(`Target directory chosen: /${targetDir}`);
+        const targetDir = '/domains/omholdings.co.za/public_html';
+        console.log(`Target directory chosen: ${targetDir}`);
 
         // Navigate to target
-        await client.cd('/' + targetDir);
+        await client.cd(targetDir);
+
 
         console.log('Removing old frontend files...');
         try {
@@ -29,29 +30,18 @@ async function deploy() {
             // ignore
         }
 
-        try {
-            await client.removeDir("assets");
-        } catch (e) {
-            // ignore
-        }
+        console.log('Uploading new frontend files...');
+        await client.uploadFromDir('dist', targetDir);
 
-        // Re-ensure api dir
-        await client.ensureDir("api");
-
-        console.log('Uploading dist directory...');
-        await client.uploadFromDir('dist', '/' + targetDir);
-
-        console.log('Uploading api directory (excluding config.php)...');
+        console.log('Uploading API files (skipping config.php)...');
+        await client.ensureDir(targetDir + '/api');
         const apiFiles = fs.readdirSync('api');
         for (const file of apiFiles) {
-            if (file === 'config.php') {
-                console.log('Skipping config.php to preserve live credentials');
-                continue;
-            }
-            if (fs.statSync(`api/${file}`).isFile()) {
-                await client.uploadFrom(`api/${file}`, `/${targetDir}/api/${file}`);
-            }
+            if (file === 'config.php') continue;
+            await client.uploadFrom(`api/${file}`, targetDir + '/api/' + file);
+            console.log(`Uploaded api/${file}`);
         }
+
 
         console.log('Deployment complete!');
     } catch (err) {

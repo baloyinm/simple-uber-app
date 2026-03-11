@@ -1,14 +1,18 @@
-import { useState, useEffect, useRef } from "react";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { BarChart, Bar, AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import { motion, AnimatePresence } from "framer-motion";
+import * as XLSX from 'xlsx';
 
 // ─── MOCK DATA ─────────────────────────────────────────────────────────────────
 const MOCK_USERS = [
-    { id: 1, name: "Tumisho Motsepe", email: "tumisho@emgcompanies.co.za", role: "admin", status: "active", dept: "Operations", avatar: "TM" },
-    { id: 2, name: "Enock Sithole", email: "enock@emgcompanies.co.za", role: "management", status: "active", dept: "Management", avatar: "ES" },
-    { id: 3, name: "Sarah Dlamini", email: "sarah@sibanye.com", role: "user", status: "active", dept: "Safety", avatar: "SD" },
-    { id: 4, name: "James Modise", email: "james@sibanye.com", role: "user", status: "pending", dept: "Engineering", avatar: "JM", phone: "082 123 0004", zNumber: "Z004" },
-    { id: 5, name: "Lindiwe Nkosi", email: "lindiwe@sibanye.com", role: "user", status: "active", dept: "HR", avatar: "LN", phone: "082 123 0005", zNumber: "Z005" },
-    { id: 6, name: "Sipho Mahlangu", email: "driver@demo", role: "driver", status: "active", dept: "Transport", avatar: "SM", phone: "082 111 2233", zNumber: "Z006", picture: "https://i.pravatar.cc/150?img=11" },
+    { id: 1, name: "Tumisho Motsepe", email: "tumisho@emgcompanies.co.za", role: "admin", status: "active", dept: "Operations", avatar: "TM", password: "demo" },
+    { id: 2, name: "Enock Sithole", email: "enock@emgcompanies.co.za", role: "management", status: "active", dept: "Management", avatar: "ES", password: "demo" },
+    { id: 3, name: "Sarah Dlamini", email: "sarah@sibanye.com", role: "user", status: "active", dept: "Safety", avatar: "SD", password: "demo" },
+    { id: 4, name: "James Modise", email: "james@sibanye.com", role: "user", status: "pending", dept: "Engineering", avatar: "JM", phone: "082 123 0004", zNumber: "Z004", password: "demo" },
+    { id: 5, name: "Lindiwe Nkosi", email: "lindiwe@sibanye.com", role: "user", status: "active", dept: "HR", avatar: "LN", phone: "082 123 0005", zNumber: "Z005", password: "demo" },
+    { id: 6, name: "Sipho Mahlangu", email: "driver@demo", password: "demo", role: "driver", status: "active", dept: "Transport", avatar: "SM", phone: "082 111 2233", zNumber: "Z006", picture: "https://i.pravatar.cc/150?img=11" },
 ];
 
 const MOCK_DRIVERS = [
@@ -105,7 +109,7 @@ const Badge = ({ status }) => {
 const Avatar = ({ initials, picture, size = 36, color = S.gold }) => {
     if (picture) return <img src={picture} alt="Avatar" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: `2px solid ${color}55` }} />;
     return <div style={{ width: size, height: size, borderRadius: "50%", background: `${color}22`, border: `2px solid ${color}55`, display: "flex", alignItems: "center", justifyContent: "center", color, fontSize: size * 0.38, fontWeight: 800, fontFamily: "Georgia, serif", flexShrink: 0 }}>
-        {initials}
+        {initials || "?"}
     </div>;
 };
 
@@ -141,10 +145,52 @@ const Input = ({ label, value, onChange, type = "text", placeholder, required, o
                 {options.map(o => <option key={o.value || o} value={o.value || o}>{o.label || o}</option>)}
             </select>
         ) : (
-            <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} min={min} style={{ width: "100%", background: "var(--surface-alt)", border: `1px solid var(--border)`, borderRadius: "var(--radius-md)", padding: "14px 16px", color: S.text, fontSize: 15, transition: "border-color 0.2s, box-shadow 0.2s", outline: "none", boxSizing: "border-box" }} onFocus={(e) => { e.target.style.borderColor = "var(--gold)"; e.target.style.boxShadow = "0 0 0 3px rgba(212, 160, 23, 0.15)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
+            <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} min={min} autoComplete="off" style={{ width: "100%", background: "var(--surface-alt)", border: `1px solid var(--border)`, borderRadius: "var(--radius-md)", padding: "14px 16px", color: S.text, fontSize: 15, transition: "border-color 0.2s, box-shadow 0.2s", outline: "none", boxSizing: "border-box" }} onFocus={(e) => { e.target.style.borderColor = "var(--gold)"; e.target.style.boxShadow = "0 0 0 3px rgba(212, 160, 23, 0.15)"; }} onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }} />
         )}
     </div>
 );
+
+const GoogleAutocomplete = ({ label, value, onChange, placeholder, icon, onPlaceSelected, required }) => {
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        if (!window.google || !inputRef.current) return;
+        const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
+            componentRestrictions: { country: "za" },
+            fields: ["formatted_address", "geometry", "name"],
+        });
+
+        autocomplete.addListener("place_changed", () => {
+            const place = autocomplete.getPlace();
+            if (place.geometry) {
+                onPlaceSelected({
+                    address: place.formatted_address || place.name,
+                    lat: place.geometry.location.lat(),
+                    lng: place.geometry.location.lng(),
+                });
+            }
+        });
+    }, []);
+
+    return (
+        <div style={{ marginBottom: 16 }}>
+            {label && <label style={{ display: "block", color: S.textMuted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>{label}{required && <span style={{ color: S.gold }}> *</span>}</label>}
+            <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}>{icon}</span>
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={value}
+                    onChange={e => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    style={{ width: "100%", background: "var(--surface-alt)", border: `1px solid var(--border)`, borderRadius: "var(--radius-md)", padding: "14px 16px 14px 44px", color: S.text, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                    onFocus={(e) => { e.target.style.borderColor = "var(--gold)"; e.target.style.boxShadow = "0 0 0 3px rgba(212, 160, 23, 0.15)"; }}
+                    onBlur={(e) => { e.target.style.borderColor = "var(--border)"; e.target.style.boxShadow = "none"; }}
+                />
+            </div>
+        </div>
+    );
+};
 
 const Modal = ({ open, onClose, title, children }) => {
     if (!open) return null;
@@ -160,6 +206,114 @@ const Modal = ({ open, onClose, title, children }) => {
             </div>
         </div>
     );
+};
+
+const MapModal = ({ open, onClose, trip, driverLoc, userLoc }) => {
+    const mapRef = useRef(null);
+    const mapObj = useRef(null);
+    const directionsRenderer = useRef(null);
+
+    useEffect(() => {
+        if (!open || !window.google || !mapRef.current) return;
+
+        const map = new window.google.maps.Map(mapRef.current, {
+            zoom: 12,
+            center: { lat: trip.pickup_lat || -26.2041, lng: trip.pickup_lng || 28.0473 }
+        });
+        mapObj.current = map;
+        directionsRenderer.current = new window.google.maps.DirectionsRenderer({
+            map,
+            polylineOptions: { strokeColor: '#D4A017', strokeOpacity: 0.8, strokeWeight: 5 }
+        });
+
+        const directionsService = new window.google.maps.DirectionsService();
+        if (trip.pickup_lat && trip.dest_lat) {
+            directionsService.route({
+                origin: { lat: trip.pickup_lat, lng: trip.pickup_lng },
+                destination: { lat: trip.dest_lat, lng: trip.dest_lng },
+                travelMode: 'DRIVING',
+            }, (res, status) => {
+                if (status === 'OK') directionsRenderer.current.setDirections(res);
+            });
+        }
+    }, [open]);
+
+    // Update markers
+    useEffect(() => {
+        if (!mapObj.current || !window.google) return;
+
+        // Driver Marker
+        if (driverLoc && driverLoc.lat) {
+            if (window.driverMarker) window.driverMarker.setMap(null);
+            window.driverMarker = new window.google.maps.Marker({
+                position: { lat: driverLoc.lat, lng: driverLoc.lng },
+                map: mapObj.current,
+                label: { text: "🚐", fontSize: "16px" },
+                icon: {
+                    path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z",
+                    fillColor: '#D4A017', fillOpacity: 1, scale: 2, strokeColor: 'white', strokeWeight: 2, anchor: new window.google.maps.Point(12, 24)
+                },
+                title: "Driver: " + (trip.driver || "Allocated")
+            });
+        }
+
+        // User Marker (Live)
+        if (userLoc && userLoc.lat) {
+            if (window.userMarker) window.userMarker.setMap(null);
+            window.userMarker = new window.google.maps.Marker({
+                position: { lat: userLoc.lat, lng: userLoc.lng },
+                map: mapObj.current,
+                icon: {
+                    path: window.google.maps.SymbolPath.CIRCLE,
+                    fillColor: '#3B82F6', fillOpacity: 1, scale: 8, strokeColor: 'white', strokeWeight: 3
+                },
+                title: "Your Location (You)"
+            });
+        }
+    }, [driverLoc, userLoc, open]);
+
+    if (!open) return null;
+    return (
+        <Modal open={open} onClose={onClose} title={`🗺 Live Track: ${trip.id}`}>
+            <div ref={mapRef} style={{ width: '100%', height: '450px', borderRadius: 16, overflow: 'hidden', border: `1px solid ${S.border}` }} />
+            <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ background: S.surfaceAlt, padding: 12, borderRadius: 10 }}>
+                    <p style={{ margin: 0, fontSize: 11, color: S.gold, fontWeight: 800, textTransform: 'uppercase' }}>🚐 Driver Status</p>
+                    <p style={{ margin: "4px 0 0", fontSize: 13, color: S.text, fontWeight: 600 }}>{trip.driver || 'Allocating...'}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: S.textMuted }}>{driverLoc?.status || 'Active'}</p>
+                </div>
+                <div style={{ background: S.surfaceAlt, padding: 12, borderRadius: 10 }}>
+                    <p style={{ margin: 0, fontSize: 11, color: S.blue, fontWeight: 800, textTransform: 'uppercase' }}>👤 Your Distance</p>
+                    <p style={{ margin: "4px 0 0", fontSize: 13, color: S.text, fontWeight: 600 }}>Live Tracking Enabled</p>
+                    <p style={{ margin: 0, fontSize: 11, color: S.textMuted }}>GPS Accuracy: High</p>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+const MapModalPreview = ({ pickup, dest }) => {
+    const mapRef = useRef(null);
+    useEffect(() => {
+        if (!window.google || !mapRef.current) return;
+        const map = new window.google.maps.Map(mapRef.current, {
+            zoom: 12,
+            center: pickup || dest || { lat: -26.2041, lng: 28.0473 },
+            disableDefaultUI: true
+        });
+
+        if (pickup) new window.google.maps.Marker({ position: pickup, map, label: "A", icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#D4A017', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 } });
+        if (dest) new window.google.maps.Marker({ position: dest, map, label: "B", icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#3B82F6', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 } });
+
+        if (pickup && dest) {
+            const directionsService = new window.google.maps.DirectionsService();
+            const directionsRenderer = new window.google.maps.DirectionsRenderer({ map, polylineOptions: { strokeColor: '#D4A017' }, suppressMarkers: true });
+            directionsService.route({ origin: pickup, destination: dest, travelMode: 'DRIVING' }, (res, status) => {
+                if (status === 'OK') directionsRenderer.setDirections(res);
+            });
+        }
+    }, [pickup, dest]);
+    return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />;
 };
 
 const Toast = ({ msg, type }) => {
@@ -186,112 +340,203 @@ const StatCard = ({ label, value, sub, color = S.gold, icon }) => (
 );
 
 // ─── STATUS PILL ──────────────────────────────────────────────────────────────
-const TripCard = ({ trip, onAction, role }) => (
-    <Card style={{ marginBottom: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-            <div>
-                <p style={{ margin: 0, color: S.gold, fontSize: 12, fontWeight: 700, letterSpacing: "0.05em" }}>{trip.id}</p>
-                <p style={{ margin: "2px 0 0", color: S.text, fontSize: 15, fontWeight: 700 }}>{trip.purpose}</p>
-            </div>
-            <Badge status={trip.status} />
-        </div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <div style={{ flex: 1, background: S.surfaceAlt, borderRadius: 10, padding: 10 }}>
-                <p style={{ margin: "0 0 2px", fontSize: 10, color: S.textMuted, fontWeight: 600, textTransform: "uppercase" }}>📍 From</p>
-                <p style={{ margin: 0, fontSize: 12, color: S.text, fontWeight: 600 }}>{trip.pickup}</p>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", color: S.gold, fontSize: 18 }}>→</div>
-            <div style={{ flex: 1, background: S.surfaceAlt, borderRadius: 10, padding: 10 }}>
-                <p style={{ margin: "0 0 2px", fontSize: 10, color: S.textMuted, fontWeight: 600, textTransform: "uppercase" }}>🏁 To</p>
-                <p style={{ margin: 0, fontSize: 12, color: S.text, fontWeight: 600 }}>{trip.destination}</p>
-            </div>
-        </div>
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
-            <span style={{ fontSize: 12, color: S.textMuted }}>📅 {trip.date} at {trip.time}</span>
-            <span style={{ fontSize: 12, color: S.textMuted }}>👥 {trip.passengers} pax</span>
-            {role === "user" && trip.driver && <span style={{ fontSize: 12, color: S.textMuted }}>👤 {trip.driver} | 🚐 {trip.plate || trip.vehicle}</span>}
-            {role === "driver" && <span style={{ fontSize: 12, color: S.textMuted }}>👤 Requested by: {trip.userName}</span>}
-        </div>
+const TripCard = ({ trip, onAction, role, drivers = [], vehicles = [], users = [], userCoords }) => {
+    const driver = drivers.find(d => d.name === trip.driver);
+    const vehicle = vehicles.find(v => v.id === (trip.vehicleId || trip.vehicle));
+    const user = users.find(u => u.id === trip.userId || u.name === trip.userName);
+    const [liveLoc, setLiveLoc] = useState(null);
+    const [trackingModal, setTrackingModal] = useState(false);
 
-        {role === "driver" && (
-            <div style={{ background: "rgba(191,164,111,0.05)", padding: 10, borderRadius: 8, marginTop: 8, display: "flex", gap: 12, alignItems: "center" }}>
-                <Avatar initials={trip.userName.split(" ").map(n => n[0]).join("")} size={30} />
+    useEffect(() => {
+        let interval;
+        if (trip.status === 'approved' && trip.driver) {
+            interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${API_URL}?action=driver_location&name=${encodeURIComponent(trip.driver)}`);
+                    const data = await res.json();
+                    if (data && data.lat) setLiveLoc(data);
+                } catch (e) { }
+            }, 5000);
+        }
+        return () => clearInterval(interval);
+    }, [trip.status, trip.driver]);
+
+    return (
+        <Card style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                 <div>
-                    <p style={{ margin: 0, fontSize: 12, color: S.gold, fontWeight: 600 }}>Requester Details</p>
-                    <p style={{ margin: 0, fontSize: 11, color: S.textMuted }}>{trip.userName}</p>
+                    <p style={{ margin: 0, color: S.gold, fontSize: 12, fontWeight: 700, letterSpacing: "0.05em" }}>{trip.id}</p>
+                    <p style={{ margin: "2px 0 0", color: S.text, fontSize: 15, fontWeight: 700 }}>{trip.purpose}</p>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                    {trip.status === 'approved' && (
+                        <Btn variant="gold" size="sm" onClick={() => setTrackingModal(true)} style={{ padding: '4px 8px', fontSize: 10 }}>🗺 Live View</Btn>
+                    )}
+                    <Badge status={trip.status} />
                 </div>
             </div>
-        )}
-        {(role === "admin") && trip.status === "pending" && (
-            <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                <Btn variant="success" size="sm" onClick={() => onAction(trip, "approve")} style={{ flex: 1, justifyContent: "center" }}>✓ Schedule</Btn>
-                <Btn variant="danger" size="sm" onClick={() => onAction(trip, "reject")} style={{ flex: 1, justifyContent: "center" }}>✕ Decline</Btn>
+
+            <MapModal open={trackingModal} onClose={() => setTrackingModal(false)} trip={trip} driverLoc={liveLoc} userLoc={userCoords} />
+
+            {/* Requester Profile (Visible to Admin/Manager/Driver) */}
+            {(role === 'admin' || role === 'management' || role === 'driver') && (
+                <div style={{ background: "rgba(255,255,255,0.03)", padding: '10px 14px', borderRadius: 12, marginBottom: 12, border: `1px solid ${S.border}`, display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: S.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 800 }}>
+                        {trip.userName ? trip.userName.split(' ').map(n => n[0]).join('') : '?'}
+                    </div>
+                    <div>
+                        <p style={{ margin: 0, fontSize: 10, color: S.blue, fontWeight: 700, textTransform: 'uppercase' }}>👤 Requester (Client)</p>
+                        <p style={{ margin: 0, fontSize: 13, color: S.text, fontWeight: 600 }}>{trip.userName || user?.name}</p>
+                        <p style={{ margin: "2px 0 0", fontSize: 11, color: S.textMuted }}>ZU: {trip.userZNumber || user?.zNumber || 'N/A'} | 📞 {trip.userPhone || user?.phone || user?.cellphone || 'N/A'}</p>
+                    </div>
+                </div>
+            )}
+
+            <div className="mobile-stack" style={{ gap: 8, marginBottom: 10 }}>
+                <div style={{ flex: 1, background: S.surfaceAlt, borderRadius: 10, padding: 10 }}>
+                    <p style={{ margin: "0 0 2px", fontSize: 10, color: S.textMuted, fontWeight: 600, textTransform: "uppercase" }}>📍 From</p>
+                    <p style={{ margin: 0, fontSize: 12, color: S.text, fontWeight: 600 }}>{trip.pickup}</p>
+                </div>
+                <div className="desktop-only" style={{ display: "flex", alignItems: "center", color: S.gold, fontSize: 18 }}>→</div>
+                <div style={{ flex: 1, background: S.surfaceAlt, borderRadius: 10, padding: 10 }}>
+                    <p style={{ margin: "0 0 2px", fontSize: 10, color: S.textMuted, fontWeight: 600, textTransform: "uppercase" }}>🏁 To</p>
+                    <p style={{ margin: 0, fontSize: 12, color: S.text, fontWeight: 600 }}>{trip.destination}</p>
+                </div>
             </div>
-        )}
-        {trip.status === "approved" && trip.teamsUpdated && (
-            <div style={{ marginTop: 10, background: "#0F3D1F", borderRadius: 8, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 14 }}>📆</span>
-                <span style={{ fontSize: 11, color: "#22C55E", fontWeight: 600 }}>Teams Calendar updated for user &amp; transport admin</span>
+
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
+                <span style={{ fontSize: 12, color: S.textMuted }}>📅 {trip.date} at {trip.time}</span>
+                <span style={{ fontSize: 12, color: S.textMuted }}>👥 {trip.passengers} pax</span>
+                {trip.distance && <span style={{ fontSize: 12, color: S.gold }}>📏 {trip.distance} ({trip.duration})</span>}
             </div>
-        )}
-    </Card>
-);
+
+            {/* Driver & Vehicle Details (Visible if approved/completed) */}
+            {(trip.status === 'approved' || trip.status === 'completed') && (
+                <div style={{ background: "rgba(212, 160, 23, 0.05)", padding: '14px', borderRadius: 12, border: `1px solid ${S.gold}33`, marginTop: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div>
+                            <p style={{ margin: '0 0 6px', fontSize: 10, color: S.gold, fontWeight: 700, textTransform: 'uppercase' }}>👷 Allocated Driver</p>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                <div style={{ width: 28, height: 28, borderRadius: '50%', background: S.gold, color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                                    {trip.driver ? trip.driver.split(' ').map(n => n[0]).join('') : '?'}
+                                </div>
+                                <div>
+                                    <p style={{ margin: 0, fontSize: 13, color: S.text, fontWeight: 700 }}>{trip.driver}</p>
+                                    <p style={{ margin: 0, fontSize: 11, color: S.textMuted }}>Z-No: {driver?.zNumber || '—'} | 📞 {driver?.phone || '—'}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ borderLeft: `1px solid ${S.border}`, paddingLeft: 16 }}>
+                            <p style={{ margin: '0 0 6px', fontSize: 10, color: S.gold, fontWeight: 700, textTransform: 'uppercase' }}>🚐 Vehicle Hub</p>
+                            <p style={{ margin: 0, fontSize: 13, color: S.text, fontWeight: 700 }}>{vehicle?.name || trip.vehicle}</p>
+                            <p style={{ margin: 0, fontSize: 11, color: S.textMuted }}>{vehicle?.plate || trip.plate} • {vehicle?.type || 'Standard'}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {(role === "admin") && trip.status === "pending" && (
+                <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                    <Btn variant="success" size="sm" onClick={() => onAction(trip, "approve")} style={{ flex: 1, justifyContent: "center" }}>✓ Schedule</Btn>
+                    <Btn variant="danger" size="sm" onClick={() => onAction(trip, "reject")} style={{ flex: 1, justifyContent: "center" }}>✕ Decline</Btn>
+                </div>
+            )}
+
+            {trip.status === "approved" && trip.teamsUpdated && (
+                <div style={{ marginTop: 10, background: "#0F3D1F", borderRadius: 8, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 14 }}>📆</span>
+                    <span style={{ fontSize: 11, color: "#22C55E", fontWeight: 600 }}>Teams Calendar updated for user &amp; transport admin</span>
+                </div>
+            )}
+        </Card>
+    );
+};
 
 // ─── GLOBAL COMPONENTS ────────────────────────────────────────────────────────
 
-const Header = ({ currentUser, setView, setCurrentUser }) => (
-    <header className="glass-panel" style={{ padding: "16px 40px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 2000, borderLeft: "none", borderRight: "none", borderRadius: 0, borderTop: "none" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
+const Header = ({ currentUser, setView, setCurrentUser, setTab }) => {
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [time, setTime] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    return (
+        <header className="glass-panel" style={{ padding: "12px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 1000, borderLeft: "none", borderRight: "none", borderTop: "none", borderRadius: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                {/* EM Group Logo */}
-                <div style={{ display: "flex", alignItems: "center", gap: 16, cursor: "pointer", borderRight: `1px solid var(--border)`, paddingRight: 16 }} onClick={() => { setCurrentUser(null); setView("landing"); setTab("home"); }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, var(--gold), var(--gold-light))`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: `0 4px 12px var(--gold-glow)` }}>🚐</div>
+                {/* Logo Section */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => { setCurrentUser(null); setView("landing"); setTab("home"); }}>
+                    <div className="logo-icon" style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, var(--gold), var(--gold-light))`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, boxShadow: `0 4px 12px var(--gold-glow)` }}>🚐</div>
                     <div>
-                        <div style={{ color: "var(--text-main)", fontSize: 18, fontWeight: 800, letterSpacing: "0.02em", fontFamily: "var(--font-sans)" }}>EM GROUP</div>
-                        <div style={{ color: "var(--gold)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Transport Scheduler</div>
+                        <div style={{ color: "var(--text-main)", fontSize: 16, fontWeight: 800, letterSpacing: "0.02em", fontFamily: "var(--font-sans)", lineHeight: 1.1 }}>EM GROUP</div>
+                        <div className="logo-subtitle" style={{ color: "var(--gold)", fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase", fontWeight: 600 }}>Scheduler</div>
                     </div>
                 </div>
 
-                {/* Sibanye Stillwater Logo */}
-                <div style={{ display: "flex", alignItems: "center" }}>
-                    <img
-                        src="https://upload.wikimedia.org/wikipedia/en/8/87/Sibanye-Stillwater_Logo.svg"
-                        alt="Sibanye Stillwater"
-                        style={{ height: 38, objectFit: "contain", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.05))" }}
-                        onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
-                    />
-                </div>
+                {/* Desktop Nav */}
+                <nav className="desktop-only-flex" style={{ gap: 24, marginLeft: 20, paddingLeft: 20, borderLeft: `1px solid var(--border)` }}>
+                    <a href="#" onClick={(e) => { e.preventDefault(); setCurrentUser(null); setView("landing"); setTab("home"); }} style={{ color: S.text, textDecoration: "none", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Home</a>
+                    <a href="#" onClick={(e) => { e.preventDefault(); setView(currentUser ? "app" : "login"); }} style={{ color: S.text, textDecoration: "none", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Booking</a>
+                    <a href="#" onClick={(e) => { e.preventDefault(); if (currentUser) { setTab("analytics"); setView("app"); } else { setView("login"); } }} style={{ color: S.gold, textDecoration: "none", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 4 }}>📊 Data Analytics</a>
+                    <a href="#" onClick={(e) => { e.preventDefault(); setView("driverPictures"); }} style={{ color: S.text, textDecoration: "none", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 4 }}>📷 Driver Pics</a>
+                </nav>
             </div>
 
-            <nav style={{ display: "flex", gap: 32, marginLeft: 24, paddingLeft: 32, borderLeft: `1px solid var(--border)` }}>
-                <a href="#" onClick={(e) => { e.preventDefault(); setCurrentUser(null); setView("landing"); setTab("home"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Home</a>
-                <a href="#" onClick={(e) => { e.preventDefault(); setView(currentUser ? "app" : "login"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Book Transport</a>
-                <a href="#" onClick={(e) => { e.preventDefault(); alert("Admin: admin@emgcompanies.co.za\nPhone: 072 611 3841\nAddress: Unit C41, Ifafi Business Center, 80 Die Ou Wapad St, Ifafi, Hartbeespoort, 0219"); }} style={{ color: S.text, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s" }} onMouseEnter={e => e.target.style.color = S.gold} onMouseLeave={e => e.target.style.color = S.text}>Contact Us</a>
-                <a href="#" onClick={(e) => { e.preventDefault(); setView("driverPictures"); }} style={{ color: S.gold, textDecoration: "none", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", transition: "color 0.2s", display: "flex", alignItems: "center", gap: 6 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.75"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>📷 Driver Pics</a>
-            </nav>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            {!currentUser ? (
-                <>
-                    <Btn variant="ghost" onClick={() => setView("login")}>Sign In</Btn>
-                    <Btn variant="gold" onClick={() => setView("register")}>Register</Btn>
-                </>
-            ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: S.text }}>{currentUser?.name.split(" ")[0]}</div>
-                        <div style={{ fontSize: 11, color: S.gold, textTransform: "capitalize", fontWeight: 600 }}>{currentUser?.role}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {!currentUser ? (
+                    <div className="desktop-only-flex" style={{ gap: 10 }}>
+                        <Btn variant="ghost" size="sm" onClick={() => setView("login")}>Sign In</Btn>
+                        <Btn variant="gold" size="sm" onClick={() => setView("register")}>Register</Btn>
                     </div>
-                    <Avatar initials={currentUser.avatar} size={40} />
-                    <button onClick={() => { setCurrentUser(null); setView("landing"); }} style={{ background: "var(--surface-alt)", border: `1px solid var(--border)`, color: S.textMuted, borderRadius: 10, width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = S.danger} onMouseLeave={e => e.currentTarget.style.color = S.textMuted} title="Sign Out">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                    </button>
+                ) : (
+                    <div className="desktop-only-flex" style={{ alignItems: "center", gap: 16 }}>
+                        <div style={{ textAlign: "right", borderRight: `1px solid ${S.border}`, paddingRight: 16 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: S.text }}>{currentUser?.name.split(" ")[0]}</div>
+                            <div style={{ fontSize: 10, color: S.gold, fontWeight: 600 }}>{currentUser?.role}</div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", minWidth: 80 }}>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: S.text, letterSpacing: "0.05em" }}>{time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                            <div style={{ fontSize: 9, color: S.textMuted, fontWeight: 600, textTransform: "uppercase" }}>{time.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <Avatar initials={currentUser?.name[0]} size={36} color={currentUser?.role === "admin" ? S.danger : S.gold} />
+                            <Btn variant="ghost" size="sm" icon="🚪" onClick={() => { setCurrentUser(null); setView("landing"); }} />
+                        </div>
+                    </div>
+                )}
+
+                {/* Mobile Menu Toggle */}
+                <button className="mobile-only-flex" onClick={() => setMenuOpen(!menuOpen)} style={{ background: "var(--surface-alt)", border: "none", color: S.text, borderRadius: 8, width: 40, height: 40, fontSize: 20, alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                    {menuOpen ? '✕' : '☰'}
+                </button>
+            </div>
+
+            {/* Mobile Swipe Menu */}
+            {menuOpen && (
+                <div className="glass-panel" style={{ position: "fixed", top: 65, left: 0, right: 0, padding: 20, borderTop: `1px solid var(--border)`, animation: "slideDown 0.3s ease-out", zIndex: 1999 }}>
+                    <style>{`@keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <a href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setView("landing"); }} style={{ color: S.text, textDecoration: "none", fontSize: 16, fontWeight: 600 }}>Home</a>
+                        <a href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setView(currentUser ? "app" : "login"); }} style={{ color: S.text, textDecoration: "none", fontSize: 16, fontWeight: 600 }}>Book Transport</a>
+                        <a href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); if (currentUser) { setTab("analytics"); setView("app"); } else { setView("login"); } }} style={{ color: S.gold, textDecoration: "none", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>📊 Data Analytics</a>
+                        <a href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setView("driverPictures"); }} style={{ color: S.text, textDecoration: "none", fontSize: 16, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>📷 Driver Pictures</a>
+                        {!currentUser ? (
+                            <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+                                <Btn variant="gold" style={{ flex: 1 }} onClick={() => { setMenuOpen(false); setView("login"); }}>Sign In</Btn>
+                                <Btn variant="outline" style={{ flex: 1 }} onClick={() => { setMenuOpen(false); setView("register"); }}>Register</Btn>
+                            </div>
+                        ) : (
+                            <Btn variant="danger" onClick={() => { setMenuOpen(false); setCurrentUser(null); setView("landing"); }}>Sign Out</Btn>
+                        )}
+                    </div>
                 </div>
             )}
-        </div>
-    </header>
-);
+        </header>
+    );
+};
+
 
 const Footer = () => (
     <footer style={{ background: "var(--surface)", padding: "60px 40px", marginTop: "auto", borderTop: "1px solid var(--border)" }}>
@@ -363,6 +608,10 @@ const DriverPicturePage = ({ showToast, onBack }) => {
     const [cameraActive, setCameraActive] = useState(false);
     const [records, setRecords] = useState([]);
     const [saving, setSaving] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [viewType, setViewType] = useState('list'); // 'list' | 'gallery'
+
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
@@ -372,9 +621,20 @@ const DriverPicturePage = ({ showToast, onBack }) => {
         fetch('/api/api.php?action=driver_pictures')
             .then(r => r.json())
             .then(data => { if (Array.isArray(data)) setRecords(data); })
-            .catch(() => {});
+            .catch(() => { });
         return () => { if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop()); };
     }, []);
+
+    const filteredRecords = useMemo(() => {
+        if (!searchTerm) return records;
+        const lowTerm = searchTerm.toLowerCase();
+        return records.filter(r =>
+            (r.name && r.name.toLowerCase().includes(lowTerm)) ||
+            (r.surname && r.surname.toLowerCase().includes(lowTerm)) ||
+            (r.zNumber && r.zNumber.toLowerCase().includes(lowTerm)) ||
+            (r.operation && r.operation.toLowerCase().includes(lowTerm))
+        );
+    }, [records, searchTerm]);
 
     const startCamera = async () => {
         try {
@@ -413,30 +673,49 @@ const DriverPicturePage = ({ showToast, onBack }) => {
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
-            setRecords(prev => [{ ...payload, id: data.id || Date.now(), created_at: new Date().toISOString() }, ...prev]);
+            if (data.success || data.id) {
+                setRecords(prev => [{ ...payload, id: data.id || Date.now(), created_at: new Date().toISOString() }, ...prev]);
+                setDpForm({ name: '', surname: '', zNumber: '', email: '', phone: '', operation: '' });
+                setCapturedImage(null);
+                showToast('Driver picture saved successfully ✓', 'success');
+            } else {
+                showToast(`Failed to save: ${data.error || 'Server error'}`, 'error');
+            }
         } catch (e) {
-            setRecords(prev => [{ ...payload, id: Date.now(), created_at: new Date().toISOString() }, ...prev]);
+            showToast('Network error: Could not connect to database API', 'error');
         }
-        setDpForm({ name: '', surname: '', zNumber: '', email: '', phone: '', operation: '' });
-        setCapturedImage(null);
         setSaving(false);
-        showToast('Driver picture saved successfully ✓', 'success');
     };
 
-    const downloadCSV = () => {
-        if (records.length === 0) return showToast('No records to download', 'info');
-        const hdrs = ['ID', 'Name', 'Surname', 'Z-Number', 'Email', 'Phone', 'Operation', 'Date'];
-        const rows = records.map(r => [r.id, r.name, r.surname, r.zNumber, r.email, r.phone, r.operation, r.created_at]);
-        const csv = [hdrs, ...rows].map(r => r.map(v => `"${v || ''}"`).join(',')).join('\n');
-        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: 'driver_pictures.csv' });
-        a.click();
-    };
+    const exportAllToZip = async () => {
+        if (records.length === 0) return showToast('No records to export', 'info');
+        setIsExporting(true);
+        try {
+            const zip = new JSZip();
+            const photosFolder = zip.folder("driver_photos");
 
-    const downloadJSON = () => {
-        if (records.length === 0) return showToast('No records to download', 'info');
-        const json = JSON.stringify(records.map(({ picture, ...r }) => r), null, 2);
-        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([json], { type: 'application/json' })), download: 'driver_pictures.json' });
-        a.click();
+            // Add a manifest JSON file
+            const manifest = records.map(({ picture, ...r }) => r);
+            zip.file("drivers_manifest.json", JSON.stringify(manifest, null, 2));
+
+            // Add images
+            for (const rec of records) {
+                if (rec.picture && rec.picture.startsWith('data:image')) {
+                    const base64Data = rec.picture.split(',')[1];
+                    const extension = rec.picture.split(';')[0].split('/')[1] || 'jpg';
+                    const fileName = `${rec.zNumber || 'unknown'}_${rec.name || 'driver'}.${extension}`;
+                    photosFolder.file(fileName, base64Data, { base64: true });
+                }
+            }
+
+            const blob = await zip.generateAsync({ type: "blob" });
+            saveAs(blob, `Driver_Photos_Export_${new Date().toISOString().split('T')[0]}.zip`);
+            showToast('ZIP export complete ✓', 'success');
+        } catch (err) {
+            showToast('Failed to create ZIP file', 'error');
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     const downloadPhoto = (rec) => {
@@ -448,8 +727,9 @@ const DriverPicturePage = ({ showToast, onBack }) => {
     return (
         <div style={{ flex: 1, padding: '32px 40px', maxWidth: 1100, margin: '0 auto', width: '100%', animation: 'fadeIn 0.4s ease-out', boxSizing: 'border-box' }}>
             <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(10px);} to {opacity:1; transform:translateY(0);} } @media(max-width:768px){.dp-grid{grid-template-columns:1fr!important;} .dp-table th:nth-child(4),.dp-table td:nth-child(4),.dp-table th:nth-child(5),.dp-table td:nth-child(5){display:none!important;}}`}</style>
+
             {/* Page Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+            <div className="dp-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
                 <div>
                     <button onClick={onBack} style={{ background: 'none', border: 'none', color: S.gold, cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: '0 0 10px', display: 'flex', alignItems: 'center', gap: 6 }}
                         onMouseEnter={e => e.currentTarget.style.opacity = '0.7'} onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
@@ -458,9 +738,10 @@ const DriverPicturePage = ({ showToast, onBack }) => {
                     <h1 style={{ margin: 0, color: S.text, fontSize: 24, fontWeight: 900 }}>📷 Driver Pictures</h1>
                     <p style={{ margin: '4px 0 0', color: S.textMuted, fontSize: 13 }}>Capture and register driver photos for identification & facial recognition</p>
                 </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                    <Btn variant="outline" size="sm" onClick={downloadCSV}>⬇ CSV</Btn>
-                    <Btn variant="outline" size="sm" onClick={downloadJSON}>⬇ JSON</Btn>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <Btn variant="gold" size="sm" onClick={exportAllToZip} disabled={isExporting}>
+                        {isExporting ? '⏳ Working...' : '📦 Export All (ZIP)'}
+                    </Btn>
                 </div>
             </div>
 
@@ -470,7 +751,8 @@ const DriverPicturePage = ({ showToast, onBack }) => {
                 {/* Camera Panel */}
                 <div className="glass-card" style={{ padding: 24 }}>
                     <h3 style={{ margin: '0 0 14px', color: S.gold, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>📸 Camera Capture</h3>
-                    <div style={{ background: S.surfaceAlt, borderRadius: 14, overflow: 'hidden', width: '100%', aspectRatio: '4/3', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, position: 'relative' }}>
+                    <div className="camera-preview" style={{ background: S.surfaceAlt, borderRadius: 14, overflow: 'hidden', width: '100%', aspectRatio: '4/3', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, position: 'relative' }}>
+
                         {capturedImage ? (
                             <img src={capturedImage} alt="Captured" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
@@ -507,9 +789,9 @@ const DriverPicturePage = ({ showToast, onBack }) => {
                 {/* Driver Details Form */}
                 <div className="glass-card" style={{ padding: 24 }}>
                     <h3 style={{ margin: '0 0 14px', color: S.gold, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>🪪 Driver Details</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
-                        <Input label="First Name" value={dpForm.name} onChange={v => setDpForm(p => ({ ...p, name: v }))} placeholder="Sipho" required />
-                        <Input label="Surname" value={dpForm.surname} onChange={v => setDpForm(p => ({ ...p, surname: v }))} placeholder="Nkosi" />
+                    <div className="mobile-stack" style={{ gap: '0 14px' }}>
+                        <div style={{ flex: 1 }}><Input label="First Name" value={dpForm.name} onChange={v => setDpForm(p => ({ ...p, name: v }))} placeholder="Sipho" required /></div>
+                        <div style={{ flex: 1 }}><Input label="Surname" value={dpForm.surname} onChange={v => setDpForm(p => ({ ...p, surname: v }))} placeholder="Nkosi" /></div>
                     </div>
                     <Input label="Z-Number" value={dpForm.zNumber} onChange={v => setDpForm(p => ({ ...p, zNumber: v }))} placeholder="Z123456" required />
                     <Input label="Email Address" value={dpForm.email} onChange={v => setDpForm(p => ({ ...p, email: v }))} type="email" placeholder="sipho@company.com" />
@@ -521,51 +803,107 @@ const DriverPicturePage = ({ showToast, onBack }) => {
                 </div>
             </div>
 
-            {/* Records Table */}
+            {/* Records Section */}
             <div className="glass-card" style={{ padding: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <h3 style={{ margin: 0, color: S.text, fontSize: 16, fontWeight: 800 }}>📋 Registered Driver Photos <span style={{ color: S.gold }}>({records.length})</span></h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+                    <h3 style={{ margin: 0, color: S.text, fontSize: 16, fontWeight: 800 }}>📋 Registered Driver Photos <span style={{ color: S.gold }}>({filteredRecords.length})</span></h3>
+
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                        {/* Search bar */}
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                placeholder="Search by name, Z-number..."
+                                style={{ background: S.surfaceAlt, border: `1px solid ${S.border}`, padding: '8px 12px 8px 32px', borderRadius: 8, color: S.text, fontSize: 13, minWidth: 200, outline: 'none' }}
+                            />
+                            <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+                        </div>
+
+                        {/* View Switcher */}
+                        <div style={{ display: 'flex', background: S.surfaceAlt, borderRadius: 8, padding: 3 }}>
+                            <button onClick={() => setViewType('list')} style={{ padding: '6px 12px', border: 'none', background: viewType === 'list' ? S.gold : 'transparent', color: viewType === 'list' ? '#000' : S.textMuted, borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>List</button>
+                            <button onClick={() => setViewType('gallery')} style={{ padding: '6px 12px', border: 'none', background: viewType === 'gallery' ? S.gold : 'transparent', color: viewType === 'gallery' ? '#000' : S.textMuted, borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>Gallery</button>
+                        </div>
+                    </div>
                 </div>
-                {records.length === 0 ? (
+
+                {filteredRecords.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '48px 0', color: S.textMuted }}>
                         <div style={{ fontSize: 44, marginBottom: 10 }}>🫙</div>
-                        <p style={{ margin: 0, fontWeight: 500 }}>No driver photos registered yet.</p>
+                        <p style={{ margin: 0, fontWeight: 500 }}>{searchTerm ? 'No results found for your search' : 'No driver photos registered yet.'}</p>
                         <p style={{ margin: '4px 0 0', fontSize: 13, color: S.textDim }}>Capture and save a photo above to get started.</p>
                     </div>
-                ) : (
+                ) : viewType === 'list' ? (
                     <div style={{ overflowX: 'auto' }}>
                         <table className="dp-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
                                 <tr>
-                                    {['Photo', 'Name', 'Z-Number', 'Email', 'Phone', 'Operation', 'Date', 'Download'].map(h => (
+                                    {['Photo', 'Name', 'Z-Number', 'Email', 'Phone', 'Operation', 'Date', 'Action'].map(h => (
                                         <th key={h} style={{ padding: '10px 12px', textAlign: 'left', color: S.textMuted, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid var(--border)`, whiteSpace: 'nowrap' }}>{h}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
-                                {records.map((rec, i) => (
-                                    <tr key={rec.id || i}
-                                        style={{ transition: 'background 0.15s' }}
-                                        onMouseEnter={e => e.currentTarget.style.background = S.surfaceAlt}
-                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                        <td style={{ padding: '10px 12px' }}>
-                                            {rec.picture
-                                                ? <img src={rec.picture} alt="Driver" style={{ width: 46, height: 46, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${S.gold}55`, display: 'block' }} />
-                                                : <Avatar initials={(rec.name?.[0] || '?')} size={46} />}
-                                        </td>
-                                        <td style={{ padding: '10px 12px', color: S.text, fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>{rec.name} {rec.surname}</td>
-                                        <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}><span style={{ color: S.gold, fontSize: 13, fontWeight: 700, background: `${S.gold}15`, padding: '3px 10px', borderRadius: 20 }}>{rec.zNumber}</span></td>
-                                        <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 13 }}>{rec.email}</td>
-                                        <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 13, whiteSpace: 'nowrap' }}>{rec.phone}</td>
-                                        <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 13 }}>{rec.operation}</td>
-                                        <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 12, whiteSpace: 'nowrap' }}>{rec.created_at ? new Date(rec.created_at).toLocaleDateString('en-ZA') : '—'}</td>
-                                        <td style={{ padding: '10px 12px' }}>
-                                            <Btn variant="outline" size="sm" onClick={() => downloadPhoto(rec)}>⬇ Photo</Btn>
-                                        </td>
-                                    </tr>
-                                ))}
+                                <AnimatePresence mode="popLayout">
+                                    {filteredRecords.map((rec, i) => (
+                                        <motion.tr
+                                            key={rec.id || i}
+                                            layout
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95 }}
+                                            style={{ transition: 'background 0.15s' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = S.surfaceAlt}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            <td style={{ padding: '10px 12px' }}>
+                                                {rec.picture
+                                                    ? <img src={rec.picture} alt="Driver" style={{ width: 46, height: 46, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${S.gold}55`, display: 'block' }} />
+                                                    : <Avatar initials={(rec.name?.[0] || '?')} size={46} />}
+                                            </td>
+                                            <td style={{ padding: '10px 12px', color: S.text, fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>{rec.name} {rec.surname}</td>
+                                            <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}><span style={{ color: S.gold, fontSize: 13, fontWeight: 700, background: `${S.gold}15`, padding: '3px 10px', borderRadius: 20 }}>{rec.zNumber}</span></td>
+                                            <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 13 }}>{rec.email}</td>
+                                            <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 13, whiteSpace: 'nowrap' }}>{rec.phone}</td>
+                                            <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 13 }}>{rec.operation}</td>
+                                            <td style={{ padding: '10px 12px', color: S.textMuted, fontSize: 12, whiteSpace: 'nowrap' }}>{rec.created_at ? new Date(rec.created_at).toLocaleDateString('en-ZA') : '—'}</td>
+                                            <td style={{ padding: '10px 12px' }}>
+                                                <Btn variant="outline" size="sm" onClick={() => downloadPhoto(rec)}>⬇ Photo</Btn>
+                                            </td>
+                                        </motion.tr>
+                                    ))}
+                                </AnimatePresence>
                             </tbody>
                         </table>
+                    </div>
+                ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 20 }}>
+                        <AnimatePresence mode="popLayout">
+                            {filteredRecords.map((rec, i) => (
+                                <motion.div
+                                    key={rec.id || i}
+                                    layout
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    className="glass-card"
+                                    style={{ padding: 16, textAlign: 'center', position: 'relative', background: S.surfaceAlt }}
+                                >
+                                    <div style={{ position: 'relative', marginBottom: 12 }}>
+                                        <img src={rec.picture} alt={rec.name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 12, border: `2px solid ${S.gold}33` }} />
+                                        <div style={{ position: 'absolute', top: 8, right: 8 }}>
+                                            <span style={{ color: '#000', fontSize: 10, fontWeight: 800, background: S.gold, padding: '2px 8px', borderRadius: 4 }}>{rec.zNumber}</span>
+                                        </div>
+                                    </div>
+                                    <p style={{ margin: 0, color: S.text, fontWeight: 700, fontSize: 15 }}>{rec.name} {rec.surname}</p>
+                                    <p style={{ margin: '4px 0 12px', color: S.textDim, fontSize: 12 }}>{rec.operation || 'Standard Operation'}</p>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <Btn variant="outline" size="sm" style={{ flex: 1 }} onClick={() => downloadPhoto(rec)}>⬇ Photo</Btn>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
                     </div>
                 )}
             </div>
@@ -573,10 +911,194 @@ const DriverPicturePage = ({ showToast, onBack }) => {
     );
 };
 
+
+// ─── DATA ANALYTICS COMPONENT ────────────────────────────────────────────────
+const DataAnalytics = () => {
+    const [rawData, setRawData] = useState([]);
+    const [cols, setCols] = useState([]);
+    const [xAxis, setXAxis] = useState("");
+    const [yAxis, setYAxis] = useState("");
+    const [aggFunc, setAggFunc] = useState("sum");
+    const [chartType, setChartType] = useState("bar");
+    const [isDragging, setIsDragging] = useState(false);
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files ? e.target.files[0] : null;
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const bstr = evt.target.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                const json = XLSX.utils.sheet_to_json(ws);
+                if (json.length > 0) {
+                    setRawData(json);
+                    const keys = Object.keys(json[0]);
+                    setCols(keys);
+                    setXAxis(keys[0]);
+                    const numCol = keys.find(k => typeof json[0][k] === 'number') || keys[1] || keys[0];
+                    setYAxis(numCol);
+                }
+            } catch (err) {
+                alert("Error reading file. Please ensure it is a valid Excel/CSV file.");
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const processedData = useMemo(() => {
+        if (!rawData.length || !xAxis || !yAxis) return [];
+        const groups = {};
+        rawData.forEach(row => {
+            const key = row[xAxis] || "Unknown";
+            const val = parseFloat(row[yAxis]) || 0;
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(val);
+        });
+        return Object.keys(groups).map(key => {
+            const vals = groups[key];
+            let result = 0;
+            switch (aggFunc) {
+                case "sum": result = vals.reduce((a, b) => a + b, 0); break;
+                case "avg": result = vals.reduce((a, b) => a + b, 0) / vals.length; break;
+                case "min": result = Math.min(...vals); break;
+                case "max": result = Math.max(...vals); break;
+                case "count": result = vals.length; break;
+            }
+            return { [xAxis]: key, [yAxis]: parseFloat(result.toFixed(2)) };
+        });
+    }, [rawData, xAxis, yAxis, aggFunc]);
+
+    const downloadExcel = () => {
+        if (!processedData.length) return;
+        const ws = XLSX.utils.json_to_sheet(processedData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Analytics");
+        XLSX.writeFile(wb, "EM_Transport_Analytics.xlsx");
+    };
+
+    return (
+        <div style={{ animation: "fadeIn 0.5s ease-out" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 24 }}>
+                <div>
+                    <h2 style={{ margin: "0 0 4px", color: S.text, fontSize: 26, fontWeight: 900 }}>📊 Data Analytics Hub</h2>
+                    <p style={{ margin: 0, color: S.textMuted, fontSize: 13 }}>Pivot and visualize your transport data sheets.</p>
+                </div>
+                {rawData.length > 0 && (
+                    <div style={{ display: "flex", gap: 10 }}>
+                        <Btn variant="outline" size="sm" onClick={downloadExcel}>📥 Export Excel</Btn>
+                        <Btn variant="danger" size="sm" onClick={() => { setRawData([]); setCols([]); }}>↺ Clear</Btn>
+                    </div>
+                )}
+            </div>
+
+            {rawData.length === 0 ? (
+                <div
+                    onDragOver={e => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+                    onDragEnter={e => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+                    onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
+                    onDrop={e => {
+                        e.preventDefault(); e.stopPropagation(); setIsDragging(false);
+                        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) handleFileUpload({ target: { files: e.dataTransfer.files } });
+                    }}
+                    onClick={() => document.getElementById('fileInput').click()}
+                    style={{ background: isDragging ? `${S.gold}11` : S.surface, border: `2px dashed ${isDragging ? S.gold : S.border}`, borderRadius: 24, padding: "80px 40px", textAlign: "center", transition: "all 0.3s", cursor: "pointer" }}
+                >
+                    <div style={{ fontSize: 64, marginBottom: 20 }}>🚛</div>
+                    <h3 style={{ color: S.text, fontSize: 20, marginBottom: 8 }}>Drop Spreadsheet Here</h3>
+                    <p style={{ color: S.textMuted, marginBottom: 32 }}>Supports .xlsx, .xls and .csv files</p>
+                    <input type="file" id="fileInput" hidden onChange={handleFileUpload} accept=".xlsx, .xls, .csv" />
+                    <Btn size="lg" style={{ pointerEvents: "none" }}>Select File</Btn>
+                </div>
+            ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 32 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                        <div className="glass-panel" style={{ padding: 24 }}>
+                            <p style={{ margin: "0 0 16px", color: S.gold, fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>🎛 Controls</p>
+                            <Input label="Aggregation" value={aggFunc} onChange={setAggFunc} options={[
+                                { value: "sum", label: "Sum" }, { value: "avg", label: "Average" }, { value: "count", label: "Count" }, { value: "min", label: "Min" }, { value: "max", label: "Max" }
+                            ]} />
+                            <div style={{ marginTop: 16 }}>
+                                <Input label="Chart Type" value={chartType} onChange={setChartType} options={[
+                                    { value: "bar", label: "Bar" }, { value: "area", label: "Area" }, { value: "line", label: "Line" }
+                                ]} />
+                            </div>
+                        </div>
+                        <div className="glass-panel" style={{ padding: 24 }}>
+                            <p style={{ margin: "0 0 12px", color: S.textMuted, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>X-Axis (Group By)</p>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                                {cols.slice(0, 12).map(c => (
+                                    <button key={c} onClick={() => setXAxis(c)} style={{ background: xAxis === c ? S.gold : S.surfaceAlt, border: "none", borderRadius: 6, padding: "6px 4px", fontSize: 10, color: xAxis === c ? "#000" : S.text, cursor: "pointer", fontWeight: 700 }}>{c}</button>
+                                ))}
+                            </div>
+                            <p style={{ margin: "20px 0 12px", color: S.textMuted, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Y-Axis (Value)</p>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                                {cols.slice(0, 12).map(c => (
+                                    <button key={c} onClick={() => setYAxis(c)} style={{ background: yAxis === c ? S.success : S.surfaceAlt, border: "none", borderRadius: 6, padding: "6px 4px", fontSize: 10, color: yAxis === c ? "#000" : S.text, cursor: "pointer", fontWeight: 700 }}>{c}</button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="glass-panel" style={{ padding: 32, minHeight: 500 }}>
+                        <div style={{ width: "100%", height: 400 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                {chartType === "bar" ? (
+                                    <BarChart data={processedData}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke={S.border} vertical={false} />
+                                        <XAxis dataKey={xAxis} stroke={S.textDim} fontSize={11} tickLine={false} />
+                                        <YAxis stroke={S.textDim} fontSize={11} tickLine={false} />
+                                        <Tooltip contentStyle={{ background: S.surface, border: `1px solid ${S.border}`, borderRadius: 12 }} />
+                                        <Bar dataKey={yAxis} fill={S.gold} radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                ) : chartType === "area" ? (
+                                    <AreaChart data={processedData}>
+                                        <defs><linearGradient id="colorAna" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={S.gold} stopOpacity={0.3} /><stop offset="95%" stopColor={S.gold} stopOpacity={0} /></linearGradient></defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke={S.border} vertical={false} />
+                                        <XAxis dataKey={xAxis} stroke={S.textDim} fontSize={11} />
+                                        <YAxis stroke={S.textDim} fontSize={11} />
+                                        <Tooltip contentStyle={{ background: S.surface, border: `1px solid ${S.border}`, borderRadius: 12 }} />
+                                        <Area type="monotone" dataKey={yAxis} stroke={S.gold} fillOpacity={1} fill="url(#colorAna)" strokeWidth={3} />
+                                    </AreaChart>
+                                ) : (
+                                    <LineChart data={processedData}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke={S.border} vertical={false} />
+                                        <XAxis dataKey={xAxis} stroke={S.textDim} fontSize={11} />
+                                        <YAxis stroke={S.textDim} fontSize={11} />
+                                        <Tooltip contentStyle={{ background: S.surface, border: `1px solid ${S.border}`, borderRadius: 12 }} />
+                                        <Line type="monotone" dataKey={yAxis} stroke={S.gold} strokeWidth={3} dot={{ fill: S.gold, r: 4 }} />
+                                    </LineChart>
+                                )}
+                            </ResponsiveContainer>
+                        </div>
+                        <div style={{ marginTop: 24, textAlign: "right" }}>
+                            <Btn variant="gold" onClick={downloadExcel}>📥 Download Aggregated Sheet</Btn>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 const API_URL = '/api/api.php';
 export default function App() {
-    const [view, setView] = useState("landing");          // landing | login | register | app
+    const [view, setView] = useState("landing");
+    const [userCoords, setUserCoords] = useState(null);
+
+    useEffect(() => {
+        if (navigator.geolocation) {
+            const watchId = navigator.geolocation.watchPosition(
+                pos => setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                null,
+                { enableHighAccuracy: true }
+            );
+            return () => navigator.geolocation.clearWatch(watchId);
+        }
+    }, []);
     const [tab, setTab] = useState("home");             // home | request | trips | fleet | users | dashboard
     const [currentUser, setCurrentUser] = useState(null);
     const [trips, setTrips] = useState([]);
@@ -586,10 +1108,15 @@ export default function App() {
     const [toast, setToast] = useState({ msg: "", type: "success" });
     const [modal, setModal] = useState({ open: false, type: null, data: null });
     const [requestStep, setRequestStep] = useState(1);
-    const [tripForm, setTripForm] = useState({ pickup: "", destination: "", date: "", time: "", purpose: "", passengers: "1", notes: "" });
+    const [tripForm, setTripForm] = useState({
+        pickup: "", pickup_lat: null, pickup_lng: null,
+        destination: "", dest_lat: null, dest_lng: null,
+        distance: "", duration: "",
+        date: "", time: "", purpose: "", passengers: "1", notes: ""
+    });
     const [scheduleForm, setScheduleForm] = useState({ driver: "", vehicle: "" });
     const [loginForm, setLoginForm] = useState({ email: "", password: "" });
-    const [vehicleRequests, setVehicleRequests] = useState([]); // { id: str, driverName: str, requestedVehicleId: str, status: 'pending'|'approved'|'rejected', date: str }
+    const [vehicleRequests, setVehicleRequests] = useState([]); // {id: str, driverName: str, requestedVehicleId: str, status: 'pending'|'approved'|'rejected', date: str }
     const [driverAllocationForm, setDriverAllocationForm] = useState({ open: false, driverId: "", vehicleId: "" });
     const OPERATIONS = {
         "SA Region - Gold": ["Driefontein", "Kloof", "Beatrix", "Burnstone"],
@@ -610,6 +1137,8 @@ export default function App() {
     const [userRoleFilter, setUserRoleFilter] = useState("all");
     const [vehicleSearch, setVehicleSearch] = useState("");
     const [dashDateRange, setDashDateRange] = useState({ start: "", end: "" });
+    const [tripSearch, setTripSearch] = useState("");
+    const [tripStatusFilter, setTripStatusFilter] = useState("all");
 
     const [vehicleForm, setVehicleForm] = useState({ id: "", name: "", plate: "", type: "", capacity: "", trips: 0, status: "available", lastService: "", assetNumber: "", homeOperation: "", odometer: "", color: "", licenseDiskExpiry: "", maintenanceInterval: "", picture: "" });
     const [driverForm, setDriverForm] = useState({ id: "", name: "", surname: "", zNumber: "", email: "", operation: "", license: "", vehicle: "", trips: 0, status: "available", phone: "", picture: "", licenseExpiry: "", prdpExpiry: "" });
@@ -725,20 +1254,54 @@ export default function App() {
 
     const handleRequestTrip = async () => {
         if (!tripForm.pickup || !tripForm.destination || !tripForm.date || !tripForm.time) return showToast('Please fill all required fields', 'error');
-        const newTrip = { id: `T00${trips.length + 1}`, userId: currentUser.id, userName: currentUser.name, ...tripForm, status: 'pending', createdAt: new Date().toISOString().split('T')[0], teamsUpdated: false };
+        const newTrip = {
+            id: `T00${trips.length + 1}`,
+            userId: currentUser.id,
+            userName: currentUser.name,
+            userZNumber: currentUser.zNumber,
+            userPhone: currentUser.cellphone,
+            ...tripForm,
+            status: 'pending',
+            createdAt: new Date().toISOString().split('T')[0],
+            teamsUpdated: false
+        };
         try {
             const res = await fetch(`${API_URL}?action=trips`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...newTrip, userId: currentUser.id, userName: currentUser.name })
+                body: JSON.stringify(newTrip)
             });
             const data = await res.json();
             if (data.id) newTrip.id = data.id;
         } catch (e) { /* API unavailable, add locally */ }
         setTrips(prev => [...prev, newTrip]);
-        setTripForm({ pickup: '', destination: '', date: '', time: '', purpose: '', passengers: '1', notes: '' });
+        setTripForm({
+            pickup: "", pickup_lat: null, pickup_lng: null,
+            destination: "", dest_lat: null, dest_lng: null,
+            distance: "", duration: "",
+            date: "", time: "", purpose: "", passengers: "1", notes: ""
+        });
         setRequestStep(1);
         showToast('Trip request submitted! ✓', 'success');
         setTab('trips');
+    };
+
+    const calculateDistance = (p, d) => {
+        if (!window.google || !p.lat || !d.lat) return;
+        const service = new window.google.maps.DistanceMatrixService();
+        service.getDistanceMatrix({
+            origins: [{ lat: p.lat, lng: p.lng }],
+            destinations: [{ lat: d.lat, lng: d.lng }],
+            travelMode: 'DRIVING',
+        }, (response, status) => {
+            if (status === 'OK' && response.rows[0].elements[0].status === 'OK') {
+                const element = response.rows[0].elements[0];
+                setTripForm(prev => ({
+                    ...prev,
+                    distance: element.distance.text,
+                    duration: element.duration.text
+                }));
+            }
+        });
     };
 
     const handleApproveTrip = async () => {
@@ -918,11 +1481,13 @@ export default function App() {
                 <Card className="glass-panel" style={{ padding: 32 }}>
                     <h2 style={{ margin: "0 0 24px", color: S.text, fontSize: 24, fontWeight: 700, fontFamily: "var(--font-sans)" }}>New User Registration</h2>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                        <Input label="First Name" value={regForm.firstName} onChange={v => setRegForm(p => ({ ...p, firstName: v }))} placeholder="Sipho" required />
-                        <Input label="Surname" value={regForm.surname} onChange={v => setRegForm(p => ({ ...p, surname: v }))} placeholder="Nkosi" required />
-                        <Input label="Cellphone Number" value={regForm.cellphone} onChange={v => setRegForm(p => ({ ...p, cellphone: v }))} placeholder="082 123 4567" required />
-                        <Input label="Z-Number" value={regForm.zNumber} onChange={v => setRegForm(p => ({ ...p, zNumber: v }))} placeholder="Z123456" required />
+                    <div className="mobile-stack" style={{ gap: '0 16px' }}>
+                        <div style={{ flex: 1 }}><Input label="First Name" value={regForm.firstName} onChange={v => setRegForm(p => ({ ...p, firstName: v }))} placeholder="Sipho" required /></div>
+                        <div style={{ flex: 1 }}><Input label="Surname" value={regForm.surname} onChange={v => setRegForm(p => ({ ...p, surname: v }))} placeholder="Nkosi" required /></div>
+                    </div>
+                    <div className="mobile-stack" style={{ gap: '0 16px' }}>
+                        <div style={{ flex: 1 }}><Input label="Cellphone Number" value={regForm.cellphone} onChange={v => setRegForm(p => ({ ...p, cellphone: v }))} placeholder="082 123 4567" required /></div>
+                        <div style={{ flex: 1 }}><Input label="Z-Number" value={regForm.zNumber} onChange={v => setRegForm(p => ({ ...p, zNumber: v }))} placeholder="Z123456" required /></div>
                     </div>
 
                     <div style={{ marginBottom: 20 }}>
@@ -939,31 +1504,43 @@ export default function App() {
 
                     <Input label="Personal Email" value={regForm.personalEmail} onChange={v => setRegForm(p => ({ ...p, personalEmail: v }))} type="email" placeholder="sipho.personal@gmail.com" />
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                        <Input label="Main Operation" value={regForm.operation} onChange={v => setRegForm(p => ({ ...p, operation: v, subOperation: "" }))} options={Object.keys(OPERATIONS)} required />
-                        <Input label="Sub Operation" value={regForm.subOperation} onChange={v => setRegForm(p => ({ ...p, subOperation: v }))} options={regForm.operation ? OPERATIONS[regForm.operation] : []} required />
+                    <div className="mobile-stack" style={{ gap: '0 16px' }}>
+                        <div style={{ flex: 1 }}><Input label="Main Operation" value={regForm.operation} onChange={v => setRegForm(p => ({ ...p, operation: v, subOperation: "" }))} options={Object.keys(OPERATIONS)} required /></div>
+                        <div style={{ flex: 1 }}><Input label="Sub Operation" value={regForm.subOperation} onChange={v => setRegForm(p => ({ ...p, subOperation: v }))} options={regForm.operation ? OPERATIONS[regForm.operation] : []} required /></div>
                     </div>
 
                     <Input label="Department" value={regForm.dept} onChange={v => setRegForm(p => ({ ...p, dept: v }))} placeholder="e.g. Safety & Health" required />
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                        <Input label="Role Requested" value={regForm.role} onChange={v => setRegForm(p => ({ ...p, role: v }))} options={[{ value: "user", label: "Standard User" }, { value: "driver", label: "Driver" }, { value: "management", label: "Management (requires approval)" }]} required />
-                        <Input label="Password" value={regForm.password} onChange={v => setRegForm(p => ({ ...p, password: v }))} type="password" placeholder="Create a password" required />
+                    <div className="mobile-stack" style={{ gap: '0 16px' }}>
+                        <div style={{ flex: 1 }}><Input label="Role Requested" value={regForm.role} onChange={v => setRegForm(p => ({ ...p, role: v }))} options={[{ value: "user", label: "Standard User" }, { value: "driver", label: "Driver" }, { value: "management", label: "Management (requires approval)" }]} required /></div>
+                        <div style={{ flex: 1 }}><Input label="Password" value={regForm.password} onChange={v => setRegForm(p => ({ ...p, password: v }))} type="password" placeholder="Create a password" required /></div>
                     </div>
 
                     {/* Driver Specific Fields */}
                     {regForm.role === "driver" && (
                         <div style={{ background: "rgba(212, 160, 23, 0.05)", border: `1px solid ${S.gold}33`, borderRadius: 14, padding: 16, marginBottom: 20 }}>
                             <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Driver Requirements</h3>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
-                                <Input label="License Expiry Date" value={regForm.licenseExpiry} onChange={v => setRegForm(p => ({ ...p, licenseExpiry: v }))} type="date" required />
-                                <Input label="PrDP Expiry Date" value={regForm.prdpExpiry} onChange={v => setRegForm(p => ({ ...p, prdpExpiry: v }))} type="date" required />
+                            <div className="mobile-stack" style={{ gap: '0 16px' }}>
+                                <div style={{ flex: 1 }}><Input label="License Expiry Date" value={regForm.licenseExpiry} onChange={v => setRegForm(p => ({ ...p, licenseExpiry: v }))} type="date" required /></div>
+                                <div style={{ flex: 1 }}><Input label="PrDP Expiry Date" value={regForm.prdpExpiry} onChange={v => setRegForm(p => ({ ...p, prdpExpiry: v }))} type="date" required /></div>
                             </div>
                             <div style={{ textAlign: "left", marginTop: 8 }}>
                                 <label style={{ display: "block", color: S.textMuted, fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>Upload License Picture (Required)</label>
                                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                                    <Btn variant="outline" size="sm" onClick={() => showToast("License picture selected (mock upload)", "info")}>Browse File...</Btn>
-                                    <span style={{ fontSize: 12, color: S.textDim }}>Max 5MB (JPG/PNG)</span>
+                                    <Btn variant="outline" size="sm" onClick={() => document.getElementById('licPic').click()}>
+                                        {regForm.licensePicture ? "Change File" : "Browse File..."}
+                                    </Btn>
+                                    <input type="file" id="licPic" hidden accept="image/*" onChange={e => {
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => setRegForm(p => ({ ...p, licensePicture: reader.result }));
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }} />
+                                    <span style={{ fontSize: 12, color: regForm.licensePicture ? S.success : S.textDim }}>
+                                        {regForm.licensePicture ? "✓ File Selected" : "Max 5MB (JPG/PNG)"}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -973,9 +1550,21 @@ export default function App() {
                     <div style={{ marginBottom: 24, textAlign: "left" }}>
                         <label style={{ display: "block", color: S.textMuted, fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>Profile Picture (Optional)</label>
                         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                            <Avatar initials={regForm.firstName ? regForm.firstName[0] : "?"} size={50} />
-                            <Btn variant="outline" size="sm" onClick={() => showToast("Picture selected (mock upload)", "info")}>Browse File...</Btn>
-                            <span style={{ fontSize: 12, color: S.textDim }}>Max 2MB (JPG/PNG)</span>
+                            <Avatar picture={regForm.picture} initials={regForm.firstName ? regForm.firstName[0] : "?"} size={50} />
+                            <Btn variant="outline" size="sm" onClick={() => document.getElementById('profPic').click()}>
+                                {regForm.picture ? "Change Photo" : "Browse File..."}
+                            </Btn>
+                            <input type="file" id="profPic" hidden accept="image/*" onChange={e => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => setRegForm(p => ({ ...p, picture: reader.result }));
+                                    reader.readAsDataURL(file);
+                                }
+                            }} />
+                            <span style={{ fontSize: 12, color: regForm.picture ? S.success : S.textDim }}>
+                                {regForm.picture ? "✓ Photo Selected" : "Max 2MB (JPG/PNG)"}
+                            </span>
                         </div>
                     </div>
 
@@ -990,10 +1579,10 @@ export default function App() {
 
     // ─── RENDER: MAIN APP ─────────────────────────────────────────────────────────
     const TABS = {
-        user: [{ id: "home", icon: "🏠", label: "Home" }, { id: "request", icon: "➕", label: "New Trip" }, { id: "trips", icon: "📋", label: "My Trips" }, { id: "dashboard", icon: "📊", label: "Dashboard" }],
-        driver: [{ id: "home", icon: "🏠", label: "Home" }, { id: "trips", icon: "📋", label: "Allocated Trips" }, { id: "dashboard", icon: "📊", label: "Dashboard" }],
-        admin: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }, { id: "driverPics", icon: "📷", label: "Driver Pics" }],
-        management: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }, { id: "driverPics", icon: "📷", label: "Driver Pics" }],
+        user: [{ id: "home", icon: "🏠", label: "Home" }, { id: "request", icon: "➕", label: "New Trip" }, { id: "trips", icon: "📋", label: "My Trips" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "analytics", icon: "📈", label: "Data Analytics" }],
+        driver: [{ id: "home", icon: "🏠", label: "Home" }, { id: "trips", icon: "📋", label: "Allocated Trips" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "analytics", icon: "📈", label: "Data Analytics" }],
+        admin: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }, { id: "driverPics", icon: "📷", label: "Driver Pics" }, { id: "analytics", icon: "📈", label: "Data Analytics" }],
+        management: [{ id: "home", icon: "🏠", label: "Home" }, { id: "dashboard", icon: "📊", label: "Dashboard" }, { id: "trips", icon: "📋", label: "All Trips" }, { id: "fleet", icon: "🚐", label: "Fleet" }, { id: "users", icon: "👥", label: "Users" }, { id: "driverPics", icon: "📷", label: "Driver Pics" }, { id: "analytics", icon: "📈", label: "Data Analytics" }],
     };
 
     // Fallback to "user" tabs if role is undefined or not in TABS
@@ -1003,7 +1592,7 @@ export default function App() {
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
             <Toast {...toast} />
 
-            <Header currentUser={currentUser} setView={setView} setCurrentUser={setCurrentUser} />
+            <Header currentUser={currentUser} setView={setView} setCurrentUser={setCurrentUser} setTab={setTab} />
 
             {view === "landing" && <Landing setView={setView} />}
             {view === "login" && renderLogin()}
@@ -1015,28 +1604,39 @@ export default function App() {
             )}
 
             {view === "app" && (
-                <div style={{ display: "flex", flex: 1, position: "relative" }}>
+                <div style={{ display: "flex", flex: 1, position: "relative", minHeight: 0 }}>
 
                     {/* Desktop Sidebar (hidden on mobile via CSS wrapper if we had one, handling inline for now) */}
-                    <aside className="glass-panel" style={{ width: 260, padding: "32px 16px", display: "flex", flexDirection: "column", gap: 8, borderTop: "none", borderLeft: "none", borderBottom: "none", borderRadius: 0, position: "sticky", top: 73, height: "calc(100vh - 73px)" }}>
+                    <aside className="glass-panel" style={{ width: 260, padding: "32px 16px", display: "flex", flexDirection: "column", gap: 8, borderTop: "none", borderLeft: "none", borderBottom: "none", borderRadius: 0, position: "sticky", top: 60, height: "calc(100vh - 60px)" }}>
                         <div style={{ marginBottom: 24, padding: "0 12px" }}>
-                            <p style={{ margin: 0, color: S.textMuted, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Application Menu</p>
+                            <p style={{ margin: 0, color: S.textMuted, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Menu</p>
                         </div>
                         {navTabs.map(t => (
-                            <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "12px 16px", background: tab === t.id ? "rgba(212, 160, 23, 0.1)" : "transparent", border: "none", borderRadius: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.2s", color: tab === t.id ? S.gold : S.textMuted, textAlign: "left" }} onMouseEnter={e => { if (tab !== t.id) e.currentTarget.style.background = "var(--surface-alt)"; e.currentTarget.style.color = S.text; }} onMouseLeave={e => { if (tab !== t.id) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = S.textMuted; } else { e.currentTarget.style.color = S.gold; } }}>
-                                <span style={{ fontSize: 20 }}>{t.icon}</span>
-                                <span style={{ fontSize: 15, fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
+                            <button key={t.id} onClick={() => setTab(t.id)} className={tab === t.id ? "sidebar-item active" : "sidebar-item"} style={{ padding: "12px 16px", background: tab === t.id ? "rgba(212, 160, 23, 0.08)" : "transparent", border: "none", borderRadius: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)", color: tab === t.id ? S.gold : S.textMuted, textAlign: "left", position: "relative", overflow: "hidden" }}>
+                                {tab === t.id && <motion.div layoutId="sidebar-glow" style={{ position: "absolute", left: 0, top: "20%", bottom: "20%", width: 3, background: S.gold, borderRadius: "0 4px 4px 0", boxShadow: `0 0 10px ${S.gold}` }} />}
+                                <span style={{ fontSize: 20, transition: "transform 0.2s" }} className="icon">{t.icon}</span>
+                                <span style={{ fontSize: 15, fontWeight: tab === t.id ? 700 : 500 }}>{t.label}</span>
                                 {t.id === "trips" && ["admin", "management"].includes(currentUser?.role) && pendingTrips.length > 0 && (
-                                    <span style={{ marginLeft: "auto", background: S.danger, width: 8, height: 8, borderRadius: "50%" }} />
+                                    <span style={{ marginLeft: "auto", background: S.danger, width: 8, height: 8, borderRadius: "50%", boxShadow: `0 0 8px ${S.danger}` }} />
                                 )}
                             </button>
                         ))}
                     </aside>
 
                     {/* Main Content Area */}
-                    <main style={{ flex: 1, padding: "32px 40px", maxWidth: 1200, margin: "0 auto", width: "100%", animation: "fadeIn 0.4s ease-out" }}>
-                        <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } @media (max-width: 768px) { aside { display: none !important; } main { padding: 20px 16px 100px !important; } .mobile-nav { display: flex !important; } .grid-desktop { grid-template-columns: 1fr !important; } } .mobile-nav { display: none; } .grid-desktop { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }`}</style>
+                    <main className="main-content" style={{ flex: 1, padding: "32px 40px", maxWidth: 1200, margin: "0 auto", width: "100%", animation: "fadeIn 0.4s ease-out", boxSizing: "border-box", minWidth: 0 }}>
+                        <style>{`
+                            @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                            .grid-desktop { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+                            .mobile-stack { display: flex; gap: 16px; }
+                            .sidebar-item:hover .icon { transform: scale(1.2); }
+                            .sidebar-item:active { transform: scale(0.98); }
+                            .sidebar-item.active { box-shadow: inset 0 0 15px rgba(177, 148, 90, 0.05); }
+                        `}</style>
 
+
+                        {/* ── DATA ANALYTICS TAB ── */}
+                        {tab === "analytics" && <DataAnalytics />}
 
                         {/* ── HOME TAB ── */}
                         {tab === "home" && (
@@ -1047,7 +1647,7 @@ export default function App() {
                                     <p style={{ margin: "4px 0 0", color: S.textDim, fontSize: 12 }}>{currentUser?.dept} • <span style={{ color: S.gold, fontWeight: 700, textTransform: "capitalize" }}>{currentUser?.role}</span></p>
                                 </div>
 
-                                <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                                <div className="mobile-stack" style={{ gap: 10, marginBottom: 16 }}>
                                     <StatCard label="My Trips" value={myTrips.length} icon="🧳" color={S.gold} sub={`${myTrips.filter(t => t.status === "completed").length} completed`} />
                                     <StatCard label={["admin", "management"].includes(currentUser?.role) ? "Pending" : "Approved"} value={["admin", "management"].includes(currentUser?.role) ? pendingTrips.length : myTrips.filter(t => t.status === "approved").length} icon={["admin", "management"].includes(currentUser?.role) ? "⏳" : "✅"} color={["admin", "management"].includes(currentUser?.role) && pendingTrips.length > 0 ? S.danger : S.success} />
                                 </div>
@@ -1069,7 +1669,7 @@ export default function App() {
                                     <div style={{ marginBottom: 16 }}>
                                         <h3 style={{ margin: "0 0 10px", color: S.text, fontSize: 14, fontWeight: 700 }}>🔔 Pending Approval</h3>
                                         {pendingTrips.slice(0, 2).map(t => (
-                                            <TripCard key={t.id} trip={t} role="admin" onAction={(trip, action) => {
+                                            <TripCard key={t.id} trip={t} role="admin" drivers={drivers} vehicles={vehicles} users={users} userCoords={userCoords} onAction={(trip, action) => {
                                                 if (action === "approve") { setModal({ open: true, type: "schedule", data: trip }); }
                                                 else { handleRejectTrip(trip); }
                                             }} />
@@ -1079,7 +1679,7 @@ export default function App() {
 
                                 {currentUser?.role === "management" && (
                                     <div style={{ marginBottom: 16 }}>
-                                        <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                                        <div className="mobile-stack" style={{ gap: 10, marginBottom: 10 }}>
                                             <StatCard label="Total Trips" value={trips.length} icon="🗺️" color={S.blueLight} />
                                             <StatCard label="Drivers Active" value={drivers.filter(d => d.status !== "off_duty").length} icon="👤" color={S.gold} />
                                         </div>
@@ -1092,11 +1692,18 @@ export default function App() {
                                     {["admin", "management"].includes(currentUser?.role) ? "📋 Recent Requests" : "📋 Recent Trips"}
                                 </h3>
                                 {(["admin", "management"].includes(currentUser?.role) ? trips : myTrips).slice(-3).reverse().map(t => (
-                                    <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
+                                    <TripCard key={t.id} trip={t} role={currentUser?.role} drivers={drivers} vehicles={vehicles} users={users} userCoords={userCoords} onAction={(trip, action) => {
                                         if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
                                         else handleRejectTrip(trip);
                                     }} />
                                 ))}
+
+                                {/* Driver Pictures link for Mobile */}
+                                <div className="mobile-only" style={{ marginTop: 24 }}>
+                                    <Btn variant="outline" style={{ width: "100%", justifyContent: "center", borderStyle: "dashed", borderWidth: 2 }} onClick={() => setView("driverPictures")}>
+                                        📷 Access Driver Pictures
+                                    </Btn>
+                                </div>
                             </div>
                         )}
 
@@ -1118,21 +1725,58 @@ export default function App() {
                                         <h3 style={{ margin: "0 0 16px", color: S.gold, fontSize: 14, fontWeight: 800 }}>Step 1: Locations</h3>
                                         <div style={{ background: S.surfaceAlt, borderRadius: 14, padding: 14, marginBottom: 14, position: "relative" }}>
                                             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                                                <div>
-                                                    <p style={{ margin: "0 0 4px", color: S.gold, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>📍 Pickup Location</p>
-                                                    <select value={tripForm.pickup} onChange={e => setTripForm(p => ({ ...p, pickup: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: tripForm.pickup ? S.text : S.textMuted, fontSize: 14, fontFamily: "inherit", outline: "none", padding: "4px 0" }}>
-                                                        <option value="">Select pickup location...</option>
-                                                        {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-                                                    </select>
-                                                </div>
+                                                <GoogleAutocomplete
+                                                    label="Pickup Location"
+                                                    placeholder="Search address or landmark..."
+                                                    value={tripForm.pickup}
+                                                    icon="📍"
+                                                    onPlaceSelected={p => {
+                                                        setTripForm(prev => {
+                                                            const updated = { ...prev, pickup: p.address, pickup_lat: p.lat, pickup_lng: p.lng };
+                                                            if (updated.dest_lat) calculateDistance({ lat: p.lat, lng: p.lng }, { lat: updated.dest_lat, lng: updated.dest_lng });
+                                                            return updated;
+                                                        });
+                                                    }}
+                                                    onChange={v => setTripForm(p => ({ ...p, pickup: v }))}
+                                                />
                                                 <div style={{ height: 1, background: S.border }} />
-                                                <div>
-                                                    <p style={{ margin: "0 0 4px", color: S.success, fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>🏁 Destination</p>
-                                                    <select value={tripForm.destination} onChange={e => setTripForm(p => ({ ...p, destination: e.target.value }))} style={{ width: "100%", background: "transparent", border: "none", color: tripForm.destination ? S.text : S.textMuted, fontSize: 14, fontFamily: "inherit", outline: "none", padding: "4px 0" }}>
-                                                        <option value="">Select destination...</option>
-                                                        {LOCATIONS.filter(l => l !== tripForm.pickup).map(l => <option key={l} value={l}>{l}</option>)}
-                                                    </select>
-                                                </div>
+                                                <GoogleAutocomplete
+                                                    label="Destination"
+                                                    placeholder="Where to?"
+                                                    value={tripForm.destination}
+                                                    icon="🏁"
+                                                    onPlaceSelected={d => {
+                                                        setTripForm(prev => {
+                                                            const updated = { ...prev, destination: d.address, dest_lat: d.lat, dest_lng: d.lng };
+                                                            if (updated.pickup_lat) calculateDistance({ lat: updated.pickup_lat, lng: updated.pickup_lng }, { lat: d.lat, lng: d.lng });
+                                                            return updated;
+                                                        });
+                                                    }}
+                                                    onChange={v => setTripForm(p => ({ ...p, destination: v }))}
+                                                />
+                                                {tripForm.distance && (
+                                                    <div style={{ marginTop: 16, padding: '16px', background: `${S.gold}15`, borderRadius: 14, border: `1px solid ${S.gold}33`, display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
+                                                        <div>
+                                                            <p style={{ margin: 0, fontSize: 10, color: S.gold, fontWeight: 800, textTransform: 'uppercase' }}>📏 Total Distance</p>
+                                                            <p style={{ margin: 0, fontSize: 18, color: S.text, fontWeight: 800 }}>{tripForm.distance}</p>
+                                                        </div>
+                                                        <div style={{ width: 1, background: `${S.gold}33` }} />
+                                                        <div>
+                                                            <p style={{ margin: 0, fontSize: 10, color: S.gold, fontWeight: 800, textTransform: 'uppercase' }}>⏱ Est. Duration</p>
+                                                            <p style={{ margin: 0, fontSize: 18, color: S.text, fontWeight: 800 }}>{tripForm.duration}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Route Preview Map */}
+                                                {(tripForm.pickup || tripForm.destination) && (
+                                                    <div style={{ marginTop: 16, height: 240, borderRadius: 14, overflow: 'hidden', border: `1px solid ${S.border}`, position: 'relative' }}>
+                                                        <MapModalPreview pickup={tripForm.pickup_lat ? { lat: tripForm.pickup_lat, lng: tripForm.pickup_lng } : null} dest={tripForm.dest_lat ? { lat: tripForm.dest_lat, lng: tripForm.dest_lng } : null} />
+                                                        <div style={{ position: 'absolute', bottom: 10, left: 10, right: 10, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: '6px 12px', borderRadius: 8, fontSize: 11, color: '#fff' }}>
+                                                            📍 Previewing your transport route...
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                         <Btn onClick={() => { if (!tripForm.pickup || !tripForm.destination) return showToast("Select both locations", "error"); setRequestStep(2); }} style={{ width: "100%", justifyContent: "center" }} size="lg">Continue →</Btn>
@@ -1174,15 +1818,62 @@ export default function App() {
                                         </div>
                                     </Card>
                                 )}
+
+                                {/* Driver Pictures link for Mobile */}
+                                <div className="mobile-only" style={{ marginTop: 24 }}>
+                                    <Btn variant="outline" style={{ width: "100%", justifyContent: "center", borderStyle: "dashed", borderWidth: 2 }} onClick={() => setView("driverPictures")}>
+                                        📷 Access Driver Pictures
+                                    </Btn>
+                                </div>
                             </div>
                         )}
 
                         {/* ── TRIPS TAB ── */}
                         {tab === "trips" && (
                             <div>
-                                <h2 style={{ margin: "0 0 16px", color: S.text, fontSize: 20, fontWeight: 900 }}>
+                                <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>
                                     {["admin", "management"].includes(currentUser?.role) ? "All Trip Requests" : currentUser?.role === "driver" ? "My Allocated Trips" : "My Trips"}
                                 </h2>
+                                <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Track and manage transport requests</p>
+
+                                {currentUser?.role === "driver" && (
+                                    <div style={{ marginBottom: 24 }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                                            <h3 style={{ margin: 0, color: S.text, fontSize: 18, fontWeight: 900 }}>🎛 Driver Controls</h3>
+                                            <Badge status={currentUser.status} />
+                                        </div>
+                                        <div style={{ background: "rgba(34,197,94,0.05)", border: `1px solid ${S.success}33`, borderRadius: 16, padding: 20, marginBottom: 24 }}>
+                                            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                                                <div style={{ width: 40, height: 40, borderRadius: 12, background: S.success, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🛰</div>
+                                                <div>
+                                                    <p style={{ margin: 0, color: S.text, fontSize: 15, fontWeight: 700 }}>Live Telemetry Active</p>
+                                                    <p style={{ margin: 0, color: S.textMuted, fontSize: 12 }}>Your location is currently visible to your assigned passengers & admin</p>
+                                                </div>
+                                                <div style={{ marginLeft: 'auto' }}>
+                                                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: S.success, boxShadow: `0 0 10px ${S.success}` }}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+                                            <Btn onClick={() => {
+                                                if (navigator.geolocation) {
+                                                    navigator.geolocation.getCurrentPosition(pos => {
+                                                        fetch(`${API_URL}?action=update_location`, {
+                                                            method: 'POST',
+                                                            body: JSON.stringify({ driverName: currentUser.name, lat: pos.coords.latitude, lng: pos.coords.longitude })
+                                                        });
+                                                        showToast("Location Pinged Successfully", "success");
+                                                    }, (error) => {
+                                                        showToast(`Geolocation error: ${error.message}`, "error");
+                                                    });
+                                                } else {
+                                                    showToast("Geolocation is not supported by your browser", "error");
+                                                }
+                                            }} style={{ flex: 1, justifyContent: "center" }}>📍 Manual Ping</Btn>
+                                            <Btn variant="outline" onClick={() => setView('driverPictures')} style={{ flex: 1, justifyContent: "center" }}>📸 Update Profile Pic</Btn>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Driver allocated vehicle card toggle overlay */}
                                 {currentUser?.role === "driver" && (
@@ -1219,14 +1910,52 @@ export default function App() {
                                         </div>
                                     </Card>
                                 )}
-                                {(["admin", "management"].includes(currentUser?.role) ? trips : myTrips).slice().reverse().map(t => (
-                                    <TripCard key={t.id} trip={t} role={currentUser?.role} onAction={(trip, action) => {
-                                        if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
-                                        else handleRejectTrip(trip);
-                                    }} />
-                                ))}
+
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                                    <h3 style={{ margin: 0, color: S.textMuted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                                        Results ({(["admin", "management"].includes(currentUser?.role) ? trips : myTrips).filter(t =>
+                                            (tripStatusFilter === "all" || t.status === tripStatusFilter) &&
+                                            (
+                                                (t.purpose && t.purpose.toLowerCase().includes(tripSearch.toLowerCase())) ||
+                                                (t.userName && t.userName.toLowerCase().includes(tripSearch.toLowerCase())) ||
+                                                (t.pickup && t.pickup.toLowerCase().includes(tripSearch.toLowerCase())) ||
+                                                (t.destination && t.destination.toLowerCase().includes(tripSearch.toLowerCase())) ||
+                                                (t.id && t.id.toLowerCase().includes(tripSearch.toLowerCase()))
+                                            )
+                                        ).length})
+                                    </h3>
+                                </div>
+
+                                {(() => {
+                                    const filteredTrips = (["admin", "management"].includes(currentUser?.role) ? trips : myTrips)
+                                        .filter(t =>
+                                            (tripStatusFilter === "all" || t.status === tripStatusFilter) &&
+                                            (
+                                                (t.purpose && t.purpose.toLowerCase().includes(tripSearch.toLowerCase())) ||
+                                                (t.userName && t.userName.toLowerCase().includes(tripSearch.toLowerCase())) ||
+                                                (t.pickup && t.pickup.toLowerCase().includes(tripSearch.toLowerCase())) ||
+                                                (t.destination && t.destination.toLowerCase().includes(tripSearch.toLowerCase())) ||
+                                                (t.id && t.id.toLowerCase().includes(tripSearch.toLowerCase()))
+                                            )
+                                        );
+                                    return (
+                                        <div className="trip-list" style={{ display: "grid", gap: 16 }}>
+                                            {filteredTrips.length > 0 ? (
+                                                filteredTrips.slice().reverse().map(t => (
+                                                    <TripCard key={t.id} trip={t} role={currentUser?.role} drivers={drivers} vehicles={vehicles} users={users} userCoords={userCoords} onAction={(trip, action) => {
+                                                        if (action === "approve") setModal({ open: true, type: "schedule", data: trip });
+                                                        else handleRejectTrip(trip);
+                                                    }} />
+                                                ))
+                                            ) : (
+                                                <p style={{ color: S.textDim, textAlign: "center", padding: "40px 0" }}>No trips found matching your criteria.</p>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         )}
+
 
                         {/* ── FLEET TAB ── */}
                         {tab === "fleet" && (
@@ -1300,9 +2029,9 @@ export default function App() {
                                     <h2 style={{ margin: "0 0 6px", color: S.text, fontSize: 20, fontWeight: 900 }}>Personnel Management</h2>
                                     <p style={{ margin: "0 0 20px", color: S.textMuted, fontSize: 13 }}>Manage users, drivers, and administrators</p>
 
-                                    <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                                    <div className="mobile-stack" style={{ gap: 10, marginBottom: 16 }}>
                                         <div style={{ flex: 2 }}><Input value={userSearch} onChange={setUserSearch} placeholder="Search by name, email, or dept..." /></div>
-                                        <div style={{ flex: 1 }}><Input value={userRoleFilter} onChange={setUserRoleFilter} options={[{ value: "all", label: "All Roles" }, { value: "user", label: "Users" }, { value: "driver", label: "Drivers" }, { value: "management", label: "Management" }, { value: "admin", label: "Admin" }]} /></div>
+                                        <div style={{ flex: 1, minWidth: 140 }}><Input value={userRoleFilter} onChange={setUserRoleFilter} options={[{ value: "all", label: "All Roles" }, { value: "user", label: "Users" }, { value: "driver", label: "Drivers" }, { value: "management", label: "Management" }, { value: "admin", label: "Admin" }]} /></div>
                                     </div>
 
                                     {users.filter(u => u.status === "pending" &&
@@ -1383,7 +2112,7 @@ export default function App() {
                                                 <button key={p} onClick={() => setChartPeriod(p)} style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: chartPeriod === p ? S.gold : "transparent", color: chartPeriod === p ? "#0D1117" : S.textMuted, fontWeight: 700, fontSize: 12, cursor: "pointer", textTransform: "capitalize", fontFamily: "inherit" }}>{p}</button>
                                             ))}
                                         </div>
-                                        <div style={{ display: "flex", gap: 10, flex: 1 }}>
+                                        <div className="mobile-stack" style={{ gap: 10, flex: 1 }}>
                                             <div style={{ flex: 1 }}><Input label="Start Date" type="date" value={dashDateRange.start} onChange={v => setDashDateRange(p => ({ ...p, start: v }))} /></div>
                                             <div style={{ flex: 1 }}><Input label="End Date" type="date" value={dashDateRange.end} onChange={v => setDashDateRange(p => ({ ...p, end: v }))} /></div>
                                         </div>
@@ -1615,7 +2344,7 @@ export default function App() {
                         </div>
                     )
                 }
-            </Modal >
-        </div >
+            </Modal>
+        </div>
     );
 }

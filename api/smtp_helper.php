@@ -69,57 +69,46 @@ function sendSmtpEmail($to, $subject, $message, $from_email, $from_name, $smtp_h
 function sendSmtpEmailWithIcs($to, $subject, $message, $icsContent, $from_email, $from_name, $smtp_host, $smtp_port, $smtp_user, $smtp_pass) {
     $crlf = "\r\n";
     
-    // Connect to the SMTP server
     $connection = fsockopen("ssl://" . $smtp_host, $smtp_port, $errno, $errstr, 10);
-    if (!$connection) {
-        return "Failed to connect to SMTP server: $errstr ($errno)";
-    }
+    if (!$connection) return "Connection Failed: $errstr";
     
-    stream_set_timeout($connection, 10);
     $res = fgets($connection, 515);
-
-    fputs($connection, "EHLO $smtp_host$crlf");
-    $res = get_lines($connection);
-    
-    fputs($connection, "AUTH LOGIN$crlf");
-    $res = get_lines($connection);
-    
-    fputs($connection, base64_encode($smtp_user) . $crlf);
-    $res = get_lines($connection);
-    fputs($connection, base64_encode($smtp_pass) . $crlf);
-    $res = get_lines($connection);
-    if (strpos($res, '235') === false) { return "SMTP Authentication Failed: $res"; }
+    fputs($connection, "EHLO $smtp_host$crlf"); $res = get_lines($connection);
+    fputs($connection, "AUTH LOGIN$crlf"); $res = get_lines($connection);
+    fputs($connection, base64_encode($smtp_user) . $crlf); $res = get_lines($connection);
+    fputs($connection, base64_encode($smtp_pass) . $crlf); $res = get_lines($connection);
+    if (strpos($res, '235') === false) return "Auth Failed: $res";
     
     fputs($connection, "MAIL FROM:<$from_email>$crlf"); $res = get_lines($connection);
     fputs($connection, "RCPT TO:<$to>$crlf"); $res = get_lines($connection);
     fputs($connection, "DATA$crlf"); $res = get_lines($connection);
     
-    $boundary = "b_" . md5(time());
+    $boundary = "alt_b_" . md5(time());
+    $mixed_boundary = "mixed_b_" . md5(time() . "m");
     
     $headers = "From: $from_name <$from_email>$crlf";
     $headers .= "To: <$to>$crlf";
     $headers .= "Subject: $subject$crlf";
     $headers .= "MIME-Version: 1.0$crlf";
-    $headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"$crlf$crlf";
+    $headers .= "Content-Type: multipart/alternative; boundary=\"$boundary\"$crlf$crlf";
     
+    // HTML Part
     $body = "--$boundary$crlf";
-    $body .= "Content-Type: text/html; charset=UTF-8$crlf$crlf";
+    $body .= "Content-Type: text/html; charset=UTF-8$crlf";
+    $body .= "Content-Transfer-Encoding: 7bit$crlf$crlf";
     $body .= $message . $crlf . $crlf;
     
+    // Calendar Part (Crucial for Outlook/Teams to see it as a meeting)
     $body .= "--$boundary$crlf";
     $body .= "Content-Type: text/calendar; method=REQUEST; charset=UTF-8$crlf";
-    $body .= "Content-Disposition: attachment; filename=\"invite.ics\"$crlf";
-    $body .= "Content-Transfer-Encoding: base64$crlf$crlf";
-    $body .= chunk_split(base64_encode($icsContent)) . $crlf;
+    $body .= "Content-Transfer-Encoding: 7bit$crlf$crlf";
+    $body .= $icsContent . $crlf . $crlf;
     
     $body .= "--$boundary--$crlf";
     
-    fputs($connection, $headers . $body . $crlf . ".$crlf");
+    fputs($connection, $headers . $body . ".$crlf");
     $res = get_lines($connection);
-    
     fputs($connection, "QUIT$crlf");
-    $res = get_lines($connection);
-    
     fclose($connection);
     return true;
 }

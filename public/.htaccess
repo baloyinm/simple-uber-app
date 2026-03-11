@@ -2,10 +2,11 @@ PassengerEnabled off
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /sibanye/
+  RewriteBase /
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{REQUEST_URI} !^/sibanye/api/
-  RewriteRule . /sibanye/index.html [L]
+  RewriteCond %{REQUEST_URI} !^/api/
+  RewriteRule . /index.html [L]
 </IfModule>
+

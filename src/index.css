@@ -1,5 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;1,700&display=swap');
 
+.mobile-nav,
+.mobile-only,
+.mobile-only-flex {
+  display: none !important;
+}
+
+.desktop-only {
+  display: block !important;
+}
+
+.desktop-only-flex {
+  display: flex !important;
+}
+
 :root {
   --font-sans: 'Outfit', 'Trebuchet MS', sans-serif;
   --font-serif: 'Playfair Display', Georgia, serif;
@@ -116,4 +130,123 @@ select,
 button,
 textarea {
   font-family: inherit;
+}
+
+/* ── MOBILE RESPONSIVE ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* Sidebar hidden on mobile (shown via bottom nav) */
+  aside {
+    display: none !important;
+  }
+
+  /* Main content area */
+  main {
+    padding: 20px 16px 100px !important;
+  }
+
+  /* Header: shrink padding and nav spacing */
+  header {
+    padding: 12px 16px !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Hide text nav links on mobile */
+  header nav {
+    display: none !important;
+  }
+
+  .desktop-only,
+  .desktop-only-flex {
+    display: none !important;
+  }
+
+  /* Mobile nav bar at bottom */
+  .mobile-nav {
+    display: flex !important;
+  }
+
+  .mobile-only {
+    display: block !important;
+  }
+
+  .mobile-only-flex {
+    display: flex !important;
+  }
+
+  /* Force single-column grids on mobile */
+  .grid-desktop,
+  .dp-grid,
+  .mobile-stack {
+    grid-template-columns: 1fr !important;
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+
+  .mobile-stack>div {
+    width: 100% !important;
+  }
+
+  /* Driver Pictures page: full-width padding */
+  .dp-grid>div {
+    width: 100% !important;
+  }
+
+  /* Larger touch targets for buttons */
+  button {
+    min-height: 44px;
+  }
+
+  /* Table horizontal scroll on mobile */
+  .dp-table {
+    font-size: 12px;
+  }
+
+  /* Hide less important columns on mobile */
+  .dp-table th:nth-child(5),
+  .dp-table td:nth-child(5),
+  .dp-table th:nth-child(6),
+  .dp-table td:nth-child(6) {
+    display: none !important;
+  }
+
+  /* Full-width inputs */
+  input,
+  select {
+    width: 100% !important;
+  }
+
+  /* Stat cards: 2 per row on mobile */
+  .stat-row {
+    flex-wrap: wrap;
+  }
+
+  /* Camera aspect ratio friendlier on phone */
+  .camera-preview {
+    aspect-ratio: 3/2 !important;
+  }
+
+  /* Driver Pictures header row: stack vertically */
+  .dp-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+}
+
+@media (max-width: 480px) {
+
+  /* Very small screens: even tighter */
+  header {
+    padding: 10px 12px !important;
+  }
+
+  main {
+    padding: 16px 12px 100px !important;
+  }
+
+  /* Logo text: hide subtitle on tiny screens */
+  header .logo-subtitle {
+    display: none;
+  }
 }

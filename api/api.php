@@ -28,7 +28,14 @@ $createTables = [
         status VARCHAR(50) DEFAULT 'pending',
         dept VARCHAR(255),
         avatar VARCHAR(10),
-        password VARCHAR(255)
+        password VARCHAR(255),
+        phone VARCHAR(50),
+        zNumber VARCHAR(100),
+        operation VARCHAR(255),
+        picture LONGTEXT,
+        licensePicture LONGTEXT,
+        licenseExpiry DATE,
+        prdpExpiry DATE
     )",
     "CREATE TABLE IF NOT EXISTS drivers (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -37,7 +44,9 @@ $createTables = [
         vehicle VARCHAR(100),
         trips INT DEFAULT 0,
         status VARCHAR(50) DEFAULT 'available',
-        phone VARCHAR(50)
+        phone VARCHAR(50),
+        lat FLOAT,
+        lng FLOAT
     )",
     "CREATE TABLE IF NOT EXISTS vehicles (
         id VARCHAR(50) PRIMARY KEY,
@@ -65,6 +74,12 @@ $createTables = [
         plate VARCHAR(100),
         createdAt VARCHAR(50),
         teamsUpdated BOOLEAN DEFAULT FALSE,
+        pickup_lat FLOAT,
+        pickup_lng FLOAT,
+        dest_lat FLOAT,
+        dest_lng FLOAT,
+        distance VARCHAR(50),
+        duration VARCHAR(50),
         notes TEXT
     )",
     "CREATE TABLE IF NOT EXISTS vehicle_logs (
@@ -100,26 +115,46 @@ $createTables = [
 foreach ($createTables as $sql) {
     try {
         $conn->exec($sql);
-    } catch (PDOException $e) {
-        // Handle error silently for initial setup
-    }
+    } catch (PDOException $e) { }
+}
+
+// Ensure columns exist in users table (for existing deployments)
+$alterTable = [
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS picture LONGTEXT",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS licensePicture LONGTEXT",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS licenseExpiry DATE",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS prdpExpiry DATE",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS zNumber VARCHAR(100)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS operation VARCHAR(255)"
+];
+foreach ($alterTable as $sql) {
+    try {
+        $conn->exec($sql);
+    } catch (PDOException $e) { }
 }
 
 // Seed initial admin if empty
 try {
-    $stmt = $conn->query("SELECT COUNT(*) FROM users");
-    if ($stmt->fetchColumn() == 0) {
-        $conn->exec("INSERT INTO users (name, email, role, status, dept, avatar, password) VALUES 
-        ('Tumisho Motsepe', 'tumisho@emgcompanies.co.za', 'admin', 'active', 'Operations', 'TM', 'demo'),
-        ('Enock Sithole', 'enock@emgcompanies.co.za', 'management', 'active', 'Management', 'ES', 'demo'),
-        ('Sarah Dlamini', 'sarah@sibanye.com', 'user', 'active', 'Safety', 'SD', 'demo')");
-
-        $conn->exec("INSERT INTO drivers (name, license, vehicle, trips, status, phone) VALUES 
-        ('Sipho Mahlangu', 'PrDP', 'V001', 24, 'available', '+27 82 111 2233')");
-
-        $conn->exec("INSERT INTO vehicles (id, name, plate, type, capacity, trips, status, lastService) VALUES 
-        ('V001', 'Toyota Quantum', 'GP 12-34 AB', 'Minibus', 14, 24, 'available', '2025-01-15')");
+    // Ensure Demo Users
+    $demoUsers = [
+        ['Tumisho Motsepe', 'tumisho@emgcompanies.co.za', 'admin', 'active', 'Operations', 'TM', 'demo'],
+        ['Enock Sithole', 'enock@emgcompanies.co.za', 'management', 'active', 'Management', 'ES', 'demo'],
+        ['Sarah Dlamini', 'sarah@sibanye.com', 'user', 'active', 'Safety', 'SD', 'demo'],
+        ['Sipho Mahlangu', 'driver@demo', 'driver', 'active', 'Transport', 'SM', 'demo']
+    ];
+    $uStmt = $conn->prepare("INSERT INTO users (name, email, role, status, dept, avatar, password) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status='active', role=VALUES(role), password=VALUES(password)");
+    foreach ($demoUsers as $du) {
+        $uStmt->execute($du);
     }
+
+    // Ensure Demo Driver
+    $conn->exec("INSERT IGNORE INTO drivers (name, license, vehicle, trips, status, phone, lat, lng) VALUES 
+    ('Sipho Mahlangu', 'PrDP', 'V001', 24, 'available', '+27 82 111 2233', -26.136, 28.140)");
+
+    // Ensure Demo Vehicle
+    $conn->exec("INSERT IGNORE INTO vehicles (id, name, plate, type, capacity, trips, status, lastService) VALUES 
+    ('V001', 'Toyota Quantum', 'GP 12-34 AB', 'Minibus', 14, 24, 'available', '2025-01-15')");
 } catch (PDOException $e) { }
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
@@ -163,8 +198,23 @@ try {
             sendResponse($stmt->fetchAll(PDO::FETCH_ASSOC));
         } elseif ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
-            $stmt = $conn->prepare("INSERT INTO users (name, email, role, status, dept, avatar, password) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$data->name, $data->email, $data->role, 'pending', $data->dept, substr($data->name, 0, 2), $data->password]);
+            $stmt = $conn->prepare("INSERT INTO users (name, email, role, status, dept, avatar, password, phone, zNumber, operation, picture, licensePicture, licenseExpiry, prdpExpiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $data->name, 
+                $data->email, 
+                $data->role, 
+                'pending', 
+                $data->dept, 
+                substr(($data->name ?? ''), 0, 2), 
+                $data->password,
+                $data->phone ?? ($data->cellphone ?? null),
+                $data->zNumber ?? null,
+                $data->operation ?? null,
+                $data->picture ?? null,
+                $data->licensePicture ?? null,
+                ($data->licenseExpiry && $data->licenseExpiry != "") ? $data->licenseExpiry : null,
+                ($data->prdpExpiry && $data->prdpExpiry != "") ? $data->prdpExpiry : null
+            ]);
             
             // Notify Admin of new registration
             $adminEmail = "admin@omholdings.co.za"; 
@@ -174,6 +224,12 @@ try {
             $msg .= "<b>Email:</b> " . $data->email . "<br>";
             $msg .= "<b>Department:</b> " . $data->dept . "<br>";
             sendEmail($adminEmail, $subject, $msg);
+
+            // Notify User of registration (New enhancement)
+            $userSubject = "Registration Received - EM Group Transport";
+            $userMsg = "Hello " . $data->name . ",<br><br>Thank you for registering with the <b>EM Group Transport Scheduler</b>. Your account is currently <b>pending approval</b> by an administrator.<br><br>";
+            $userMsg .= "You will receive an email once your account has been activated.<br><br>Regards,<br>EM Group Transport Team";
+            sendEmail($data->email, $userSubject, $userMsg);
 
             sendResponse(['id' => $conn->lastInsertId()]);
         } elseif ($method === 'PUT') {
@@ -239,8 +295,11 @@ try {
         } elseif ($method === 'POST') {
             $data = json_decode(file_get_contents("php://input"));
             $tripId = "T" . time() . rand(10, 99);
-            $stmt = $conn->prepare("INSERT INTO trips (id, userId, userName, pickup, destination, trip_date, trip_time, purpose, passengers, status, createdAt, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)");
-            $stmt->execute([$tripId, $data->userId, $data->userName, $data->pickup, $data->destination, $data->date, $data->time, $data->purpose, $data->passengers, date('Y-m-d'), $data->notes]);
+            $stmt = $conn->prepare("INSERT INTO trips (id, userId, userName, pickup, destination, trip_date, trip_time, purpose, passengers, status, createdAt, pickup_lat, pickup_lng, dest_lat, dest_lng, distance, duration, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $tripId, $data->userId, $data->userName, $data->pickup, $data->destination, $data->date, $data->time, $data->purpose, $data->passengers, date('Y-m-d'), 
+                $data->pickup_lat ?? null, $data->pickup_lng ?? null, $data->dest_lat ?? null, $data->dest_lng ?? null, $data->distance ?? null, $data->duration ?? null, $data->notes
+            ]);
             
             // Notify Admin of new trip request
             $adminEmail = "admin@omholdings.co.za";
@@ -285,26 +344,34 @@ try {
                         $icsContent .= "DTSTART:" . $dtStart . "\r\n";
                         $icsContent .= "DTEND:" . $dtEnd . "\r\n";
                         $icsContent .= "DTSTAMP:" . gmdate("Ymd\THis\Z") . "\r\n";
-                        $icsContent .= "SUMMARY:Transport Allocated: " . $trip['pickup'] . " to " . $trip['destination'] . "\r\n";
-                        $icsContent .= "DESCRIPTION:Your transport request has been approved.\\n\\nDriver: " . $data->driver . "\\nVehicle: " . $data->vehicle . " (" . $data->plate . ")\\nPurpose: " . $trip['purpose'] . "\r\n";
-                        $icsContent .= "LOCATION:" . $trip['pickup'] . "\r\n";
+                        $icsContent .= "SUMMARY:Transport: " . $trip['pickup'] . " -> " . $trip['destination'] . " (" . $user['name'] . ")\r\n";
+                        $icsContent .= "DESCRIPTION:Transport allocation confirmed.\\n\\nUser: " . $user['name'] . "\\nDriver: " . $data->driver . "\\nVehicle: " . $data->vehicle . " (" . $data->plate . ")\\n\\nJoin Microsoft Teams Meeting:\\nhttps://teams.microsoft.com/l/meetup-join/em-group-transport-portal\r\n";
+                        $icsContent .= "LOCATION:Microsoft Teams Meeting / " . $trip['pickup'] . "\r\n";
                         $icsContent .= "ORGANIZER;CN=EM Group Transport:mailto:admin@omholdings.co.za\r\n";
-                        $icsContent .= "ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:" . $user['email'] . "\r\n";
+                        $icsContent .= "ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=" . $user['name'] . ":mailto:" . $user['email'] . "\r\n";
+                        $icsContent .= "ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=Administrator:mailto:admin@omholdings.co.za\r\n";
                         $icsContent .= "STATUS:CONFIRMED\r\n";
+                        $icsContent .= "SEQUENCE:0\r\n";
+                        $icsContent .= "TRANSP:OPAQUE\r\n";
                         $icsContent .= "END:VEVENT\r\n";
                         $icsContent .= "END:VCALENDAR\r\n";
 
                         // Send Email to User
-                        $subject = "Transport Request Approved - Calendar Invite";
-                        $msg = "Hello " . $user['name'] . ",<br><br>Your transport request from <b>" . $trip['pickup'] . "</b> to <b>" . $trip['destination'] . "</b> has been approved.<br><br>";
+                        $subject = "Transport Approved: " . $trip['pickup'] . " to " . $trip['destination'];
+                        $msg = "Hello " . $user['name'] . ",<br><br>Your transport request has been approved and scheduled.<br><br>";
                         $msg .= "<b>Driver:</b> " . $data->driver . "<br>";
-                        $msg .= "<b>Vehicle:</b> " . $data->plate . "<br><br>";
-                        $msg .= "Please find the attached calendar invite for Microsoft Teams / Outlook.";
+                        $msg .= "<b>Vehicle:</b> " . $data->plate . "<br>";
+                        $msg .= "<b>Date:</b> " . $trip['trip_date'] . " at " . $trip['trip_time'] . "<br><br>";
+                        $msg .= "Please find the attached Microsoft Teams / Outlook calendar invite.";
                         
                         sendEmail($user['email'], $subject, $msg, $icsContent);
                         
                         // Send Email to Admin as well
-                        sendEmail("admin@omholdings.co.za", "Transport Approved & Scheduled", "A trip has been approved and scheduled for " . $user['name'] . ".", $icsContent);
+                        $adminSubject = "Trip Scheduled: " . $user['name'] . " (" . $trip['id'] . ")";
+                        $adminMsg = "A transport request for <b>" . $user['name'] . "</b> has been approved and scheduled.<br><br>";
+                        $adminMsg .= "<b>Destination:</b> " . $trip['destination'] . "<br>";
+                        $adminMsg .= "<b>Driver:</b> " . $data->driver . "<br>";
+                        sendEmail("admin@omholdings.co.za", $adminSubject, $adminMsg, $icsContent);
                     }
                 }
             } elseif (isset($data->action) && $data->action === 'reject') {
@@ -370,6 +437,27 @@ try {
             ]);
             sendResponse(['success' => true, 'id' => $conn->lastInsertId()]);
         }
+    } elseif ($action === 'update_location') {
+        if ($method === 'POST') {
+            $data = json_decode(file_get_contents("php://input"));
+            if (isset($data->lat) && isset($data->lng)) {
+                if (isset($data->driverId)) {
+                    $stmt = $conn->prepare("UPDATE drivers SET lat = ?, lng = ? WHERE id = ?");
+                    $stmt->execute([$data->lat, $data->lng, $data->driverId]);
+                    sendResponse(['success' => true]);
+                } elseif (isset($data->driverName)) {
+                    $stmt = $conn->prepare("UPDATE drivers SET lat = ?, lng = ? WHERE name = ?");
+                    $stmt->execute([$data->lat, $data->lng, $data->driverName]);
+                    sendResponse(['success' => true]);
+                }
+            }
+            sendResponse(['error' => 'Missing data']);
+        }
+    } elseif ($action === 'driver_location') {
+        $driverName = $_GET['name'] ?? '';
+        $stmt = $conn->prepare("SELECT lat, lng, name, status FROM drivers WHERE name = ?");
+        $stmt->execute([$driverName]);
+        sendResponse($stmt->fetch(PDO::FETCH_ASSOC));
     } else {
         sendResponse(['error' => 'Invalid action']);
     }
