@@ -1099,7 +1099,18 @@ export default function App() {
             return () => navigator.geolocation.clearWatch(watchId);
         }
     }, []);
-    const [tab, setTab] = useState("home");             // home | request | trips | fleet | users | dashboard
+    useEffect(() => {
+        if (!window.google) {
+            const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        }
+    }, []);
+
+    const [tab, setTab] = useState("home");
     const [currentUser, setCurrentUser] = useState(null);
     const [trips, setTrips] = useState([]);
     const [users, setUsers] = useState([]);
